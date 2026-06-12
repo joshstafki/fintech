@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Next-Gen Financial Dashboard - Multi-Account Bi-Weekly Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                        oswald: ['Oswald', 'sans-serif'],
+                    },
+                    colors: {
+                        bgDark: '#0A0A0B',
+                        cardDark: '#121316',
+                        cardBorder: 'rgba(255, 255, 255, 0.06)',
+                        neonGreen: '#00E676',
+                        neonOrange: '#FF9100',
+                        neonRed: '#FF1744',
+                        neonBlue: '#00E5FF',
+                        neonPurple: '#B388FF'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0A0A0B; color: #FFFFFF; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        .glass-panel {
+            background: rgba(18, 19, 22, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .glass-panel:hover { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
+        .number-font { font-family: 'Oswald', sans-serif; }
+        .neon-text-green { text-shadow: 0 0 10px rgba(0, 230, 118, 0.4); }
+        .neon-text-red { text-shadow: 0 0 10px rgba(255, 23, 68, 0.4); }
+        .neon-text-purple { text-shadow: 0 0 10px rgba(179, 136, 255, 0.4); }
+        
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        
+        input, select {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input:focus, select:focus { border-color: #00E5FF; box-shadow: 0 0 10px rgba(0,229,255,0.2); }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; cursor: pointer; }
+        option { background-color: #121316; color: white; }
+        
+        .fade-enter { opacity: 0; transform: translateY(10px); }
+        .fade-enter-active { opacity: 1; transform: translateY(0); transition: opacity 0.4s, transform 0.4s; }
+        .fade-exit { opacity: 1; }
+        .fade-exit-active { opacity: 0; transform: translateY(-10px); transition: opacity 0.3s, transform 0.3s; }
+
+        #modal-overlay { backdrop-filter: blur(8px); }
+        .modal-enter { opacity: 0; transform: scale(0.95); }
+        .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 0.3s, transform 0.3s; }
+        
+        /* Checkbox styling */
+        input[type="checkbox"] {
+            width: auto; margin-right: 8px; accent-color: #00E5FF;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center text-sm">
+
+    <div id="onboarding-flow" class="w-full max-w-lg p-6 glass-panel relative z-50">
+        <div id="step-1" class="space-y-6">
+            <div class="space-y-2">
+                <h2 class="text-2xl font-semibold tracking-tight">Initialize Workspace</h2>
+                <p class="text-gray-400">Establish the bi-weekly operational command center.</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-gray-500 uppercase tracking-widest mb-1 block">Administrator Name</label>
+                    <input type="text" id="input-name" placeholder="e.g., Josh" autocomplete="off">
+                </div>
+            </div>
+            <button onclick="nextStep(1, 2)" class="w-full py-3 bg-white text-black font-medium rounded-lg hover:bg-gray-200 transition-colors">Continue</button>
+        </div>
+
+        <div id="step-2" class="space-y-6 hidden">
+            <div class="space-y-2">
+                <h2 class="text-2xl font-semibold tracking-tight">Account Architecture</h2>
+                <p class="text-gray-400">Define the accounts the user will be allocating funds to and from.</p>
+            </div>
+            
+            <div id="account-inputs-container" class="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+                <div class="account-row bg-white/5 p-4 rounded-xl border border-white/10 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-neonBlue uppercase tracking-widest font-semibold">Account 1</span>
+                    </div>
+                    <div>
+                        <input type="text" class="acc-name" placeholder="e.g., Main Checking">
+                    </div>
+                    <div>
+                        <input type="number" class="acc-balance" placeholder="Initial Balance ($)" step="0.01">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="addAccountInput()" class="w-full py-2 border border-dashed border-gray-600 text-gray-400 rounded-lg hover:border-white hover:text-white transition-colors text-xs uppercase tracking-widest">
+                + Add Another Account
+            </button>
+
+            <div class="flex gap-3 pt-4 border-t border-white/10">
+                <button onclick="nextStep(2, 1)" class="w-1/3 py-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">Back</button>
+                <button onclick="finishOnboarding()" class="w-2/3 py-3 bg-neonBlue text-bgDark font-semibold rounded-lg hover:bg-[#00B8CC] shadow-[0_0_15px_rgba(0,229,255,0.4)] transition-all">Compile Dashboard</button>
+            </div>
+        </div>
+
+        <div id="step-loading" class="space-y-6 hidden text-center py-8">
+            <div class="w-12 h-12 rounded-full border-4 border-gray-800 border-t-neonBlue animate-spin mx-auto"></div>
+            <div class="space-y-1">
+                <h2 class="text-lg font-medium text-white">Synthesizing Ledger...</h2>
+                <p class="text-xs text-gray-500">Mapping 14-day revolving timeline parameters.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center overflow-y-auto pt-10 pb-10">
+        <div id="transaction-modal" class="glass-panel w-full max-w-md p-6 modal-enter my-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold tracking-tight">Configure Ledger Entry</h2>
+                <button onclick="closeModal()" class="text-gray-500 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <form id="tx-form" onsubmit="addTransaction(event)" class="space-y-4">
+                <div>
+                    <label class="text-xs text-gray-500 uppercase tracking-widest mb-1 block">Description</label>
+                    <input type="text" id="tx-name" placeholder="e.g., DJI Software License" required autocomplete="off">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-500 uppercase tracking-widest mb-1 block">Type</label>
+                        <select id="tx-type" required onchange="handleTypeChange()">
+                            <option value="expense">Outflow (Expense)</option>
+                            <option value="income">Inflow (Revenue)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 uppercase tracking-widest mb-1 block">Category</label>
+                        <select id="tx-category" required>
+                            <option value="operations">Operations & Tech</option>
+                            <option value="housing">Housing</option>
+                            <option value="food">Food & Dining</option>
+                            <option value="transport">Transportation</option>
+                            <option value="debt">Debt / Credit</option>
+                            <option value="savings">Savings / Investment</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs text-gray-500 uppercase tracking-widest mb-1 block">Total Amount ($)</label>
+                    <input type="number" id="tx-amount" placeholder="0.00" step="0.01" required min="0.01" oninput="updateSplitMath()">
+                </div>
+
+                <div id="primary-account-container">
+                    <label class="text-xs text-gray-500 uppercase tracking-widest mb-1 block">Target Account</label>
+                    <select id="tx-account" required></select>
+                </div>
+
+                <div id="split-ui" class="hidden bg-white/5 p-3 rounded-lg border border-neonBlue/30 space-y-3">
+                    <label class="flex items-center text-xs text-neonBlue uppercase tracking-widest cursor-pointer font-semibold">
+                        <input type="checkbox" id="tx-use-split" onchange="toggleSplitUI()"> Allocate across two accounts?
+                    </label>
+                    
+                    <div id="split-details" class="hidden space-y-3 pt-2 border-t border-white/10">
+                        <p class="text-[10px] text-gray-400">Specify the amount for the primary account; the remainder maps to the secondary.</p>
+                        <div class="grid grid-cols-2 gap-2 items-end">
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Secondary Account</label>
+                                <select id="tx-split-account"></select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">Amount to Primary</label>
+                                <input type="number" id="tx-split-amount" placeholder="0.00" step="0.01" oninput="updateSplitMath()">
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-300">Remainder to Secondary: <span id="split-remainder-text" class="font-oswald text-neonGreen">$0.00</span></p>
+                    </div>
+                </div>
+
+                <div class="bg-[#121316] p-3 rounded-lg border border-white/5 space-y-3 mt-2">
+                    <div>
+                        <label class="text-xs text-gray-500 uppercase tracking-widest mb-1 block">Calendar Date</label>
+                        <input type="date" id="tx-date" required>
+                    </div>
+                    <label class="flex items-start gap-2 text-xs text-gray-300 cursor-pointer pt-2">
+                        <input type="checkbox" id="tx-out-of-cycle" class="mt-0.5"> 
+                        <span class="leading-snug">Future Reconciliation <br><span class="text-[10px] text-neonPurple uppercase tracking-widest">Subtracts from global balance outside 14-day sprint</span></span>
+                    </label>
+                </div>
+                
+                <button type="submit" class="w-full py-3 mt-4 bg-neonBlue text-bgDark font-semibold rounded-lg hover:bg-[#00B8CC] shadow-[0_0_15px_rgba(0,229,255,0.4)] transition-all">
+                    Inject into Schedule
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-dashboard" class="hidden w-full max-w-[1400px] min-h-screen p-4 md:p-8 flex-col gap-6" id="pdf-export-area">
+        
+        <header class="flex flex-col md:flex-row justify-between items-center gap-4 glass-panel p-4 px-6 z-50 border-b border-white/10" data-html2canvas-ignore>
+            <div class="flex items-center gap-3">
+                <div id="ui-avatar" class="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-700 to-gray-500 flex items-center justify-center font-oswald text-lg font-bold">U</div>
+                <div>
+                    <h1 class="text-gray-200 font-medium">Revolving 14-Day Architecture</h1>
+                    <p class="text-xs text-neonBlue uppercase tracking-widest font-semibold" id="ui-cycle-dates">Active Sprint: Synchronizing...</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="exportToPDF()" class="bg-white/5 border border-white/10 text-white hover:bg-white/10 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-medium transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Export PDF
+                </button>
+                <button onclick="openModal()" class="bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    New Transaction
+                </button>
+            </div>
+        </header>
+
+        <section class="glass-panel p-6 flex flex-col relative overflow-hidden bg-gradient-to-br from-[#121316] to-[#0A0A0B]">
+            <h3 class="text-sm text-gray-300 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <svg class="w-4 h-4 text-neonBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                Global Liquidity Overview
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="ui-accounts-grid">
+                </div>
+        </section>
+
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <section class="lg:col-span-8 flex flex-col gap-6">
+                
+                <div class="glass-panel p-6">
+                    <h3 class="text-sm text-gray-300 uppercase tracking-widest mb-4">Sprint Category Allocation</h3>
+                    <div id="ui-category-bars" class="space-y-4">
+                        <div class="text-xs text-gray-600 italic">No expense data logged for current sprint.</div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 flex flex-col h-[500px]">
+                    <div class="flex justify-between items-end mb-4">
+                        <h3 class="text-sm text-gray-300 uppercase tracking-widest">Comprehensive Ledger</h3>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-500 uppercase tracking-widest">In-Cycle Net Flow</p>
+                            <p class="number-font text-xl" id="ui-net-flow">$0.00</p>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto pr-2 flex-1 border-t border-white/5 pt-2">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-gray-500 text-[10px] uppercase tracking-widest border-b border-white/5">
+                                    <th class="pb-3 font-medium w-24">Date</th>
+                                    <th class="pb-3 font-medium">Description</th>
+                                    <th class="pb-3 font-medium">Account</th>
+                                    <th class="pb-3 font-medium text-right">Amount</th>
+                                    <th class="pb-3 font-medium text-center w-16" data-html2canvas-ignore>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-200" id="ui-ledger-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-4 flex flex-col gap-6">
+                
+                <div class="glass-panel p-6 flex-1 flex flex-col relative overflow-hidden h-[500px]">
+                    <h3 class="text-sm text-gray-300 uppercase tracking-widest mb-6">In-Cycle Velocity Map</h3>
+                    <div class="relative flex-1 w-full pl-4 border-l border-white/10 overflow-y-auto" id="ui-timeline-vertical">
+                        </div>
+                </div>
+
+                <div class="glass-panel p-6 bg-gradient-to-br from-[#121316] to-[#0A0A0B] border-t-4 border-t-neonPurple">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-8 h-8 rounded-full bg-neonPurple/10 flex items-center justify-center border border-neonPurple/30 shrink-0">
+                            <svg class="w-4 h-4 text-neonPurple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <h3 class="text-sm font-semibold text-white">AI Liquidity Analysis</h3>
+                    </div>
+                    <p class="text-gray-400 text-xs leading-relaxed tracking-wide" id="ui-ai-text">
+                        Awaiting schedule parameters to generate structural insights...
+                    </p>
+                </div>
+
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // State Management
+        let appState = {
+            name: 'User',
+            sprintStartDate: new Date(), 
+            accounts: [], 
+            transactions: [] // { id, name, accountId, type, category, amount, dateObj, isOutOfCycle, isSplit, splitDetails }
+        };
+
+        const fmt = (num) => num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formatDate = (date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        // Category Map for styling
+        const catConfig = {
+            operations: { label: 'Operations & Tech', color: '#00E5FF' },
+            housing: { label: 'Housing', color: '#B388FF' },
+            food: { label: 'Food & Dining', color: '#00E676' },
+            transport: { label: 'Transportation', color: '#FF9100' },
+            debt: { label: 'Debt / Credit', color: '#FF1744' },
+            savings: { label: 'Savings', color: '#F4D03F' },
+            other: { label: 'Other', color: '#9CA3AF' }
+        };
+
+        // --- Navigation & Onboarding ---
+        function nextStep(current, next) {
+            document.getElementById(`step-${current}`).classList.add('hidden');
+            document.getElementById(`step-${next}`).classList.remove('hidden');
+        }
+
+        function addAccountInput() {
+            const container = document.getElementById('account-inputs-container');
+            const count = container.querySelectorAll('.account-row').length + 1;
+            const div = document.createElement('div');
+            div.className = "account-row bg-white/5 p-4 rounded-xl border border-white/10 space-y-3 fade-enter-active";
+            div.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-neonBlue uppercase tracking-widest font-semibold">Account ${count}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-gray-500 hover:text-neonRed"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div><input type="text" class="acc-name" placeholder="Account Name"></div>
+                <div><input type="number" class="acc-balance" placeholder="Initial Balance ($)" step="0.01"></div>
+            `;
+            container.appendChild(div);
+        }
+
+        function finishOnboarding() {
+            const nameInput = document.getElementById('input-name').value.trim();
+            if (nameInput) appState.name = nameInput;
+
+            document.querySelectorAll('.account-row').forEach((row, index) => {
+                const name = row.querySelector('.acc-name').value.trim() || `Account ${index + 1}`;
+                const balance = parseFloat(row.querySelector('.acc-balance').value) || 0;
+                appState.accounts.push({ id: 'acc_' + Date.now() + index, name, initialBalance: balance, currentBalance: balance });
+            });
+
+            if(appState.accounts.length === 0) {
+                appState.accounts.push({ id: 'acc_default', name: 'Primary Wallet', initialBalance: 0, currentBalance: 0 });
+            }
+
+            const accOptions = appState.accounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('');
+            document.getElementById('tx-account').innerHTML = accOptions;
+            document.getElementById('tx-split-account').innerHTML = accOptions;
+
+            document.getElementById('step-2').classList.add('hidden');
+            document.getElementById('step-loading').classList.remove('hidden');
+
+            setTimeout(() => {
+                document.body.classList.remove('justify-center');
+                document.body.classList.add('justify-start');
+                document.getElementById('onboarding-flow').style.display = 'none';
+                const dashboard = document.getElementById('main-dashboard');
+                dashboard.classList.remove('hidden');
+                dashboard.classList.add('flex', 'fade-enter-active');
+                renderDashboard();
+            }, 1000);
+        }
+
+        // --- Modal & Split Logic ---
+        function handleTypeChange() {
+            const type = document.getElementById('tx-type').value;
+            const splitUI = document.getElementById('split-ui');
+            if (type === 'income') {
+                splitUI.classList.remove('hidden');
+            } else {
+                splitUI.classList.add('hidden');
+                document.getElementById('tx-use-split').checked = false;
+                toggleSplitUI();
+            }
+        }
+
+        function toggleSplitUI() {
+            const useSplit = document.getElementById('tx-use-split').checked;
+            const details = document.getElementById('split-details');
+            if (useSplit) {
+                details.classList.remove('hidden');
+                updateSplitMath();
+            } else {
+                details.classList.add('hidden');
+            }
+        }
+
+        function updateSplitMath() {
+            if(!document.getElementById('tx-use-split').checked) return;
+            const total = parseFloat(document.getElementById('tx-amount').value) || 0;
+            const splitAmt1 = parseFloat(document.getElementById('tx-split-amount').value) || 0;
+            const remainder = Math.max(total - splitAmt1, 0);
+            document.getElementById('split-remainder-text').innerText = `$${fmt(remainder)}`;
+        }
+
+        function openModal() {
+            document.getElementById('tx-date').valueAsDate = new Date();
+            document.getElementById('modal-overlay').classList.remove('hidden');
+            setTimeout(() => document.getElementById('transaction-modal').classList.add('modal-enter-active'), 10);
+            handleTypeChange();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('transaction-modal');
+            modal.classList.remove('modal-enter-active');
+            setTimeout(() => document.getElementById('modal-overlay').classList.add('hidden'), 300);
+            document.getElementById('tx-form').reset();
+            handleTypeChange();
+        }
+
+        function addTransaction(e) {
+            e.preventDefault();
+            const dateInput = new Date(document.getElementById('tx-date').value + 'T12:00:00');
+            const totalAmount = parseFloat(document.getElementById('tx-amount').value);
+            const type = document.getElementById('tx-type').value;
+            const isSplit = document.getElementById('tx-use-split').checked && type === 'income';
+            
+            let tx = {
+                id: 'tx_' + Date.now(),
+                name: document.getElementById('tx-name').value,
+                type: type,
+                category: document.getElementById('tx-category').value,
+                dateObj: dateInput,
+                isOutOfCycle: document.getElementById('tx-out-of-cycle').checked,
+                isSplit: isSplit,
+                amount: totalAmount
+            };
+
+            if (isSplit) {
+                const splitAmt1 = parseFloat(document.getElementById('tx-split-amount').value) || 0;
+                const splitAmt2 = Math.max(totalAmount - splitAmt1, 0);
+                tx.splitDetails = [
+                    { accountId: document.getElementById('tx-account').value, amount: splitAmt1 },
+                    { accountId: document.getElementById('tx-split-account').value, amount: splitAmt2 }
+                ];
+                // Display primary account in basic ledger
+                tx.accountId = document.getElementById('tx-account').value; 
+            } else {
+                tx.accountId = document.getElementById('tx-account').value;
+            }
+
+            appState.transactions.push(tx);
+            appState.transactions.sort((a, b) => a.dateObj - b.dateObj);
+            
+            closeModal();
+            renderDashboard();
+        }
+
+        function removeTransaction(id) {
+            appState.transactions = appState.transactions.filter(t => t.id !== id);
+            renderDashboard();
+        }
+
+        // --- PDF Export ---
+        function exportToPDF() {
+            const element = document.getElementById('main-dashboard');
+            const opt = {
+                margin:       0.2,
+                filename:     `Ledger_Export_${formatDate(new Date())}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#0A0A0B' },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        }
+
+        // --- Core Rendering Engine ---
+        function renderDashboard() {
+            document.getElementById('ui-avatar').innerText = appState.name.charAt(0).toUpperCase();
+            const sprintEnd = new Date(appState.sprintStartDate);
+            sprintEnd.setDate(sprintEnd.getDate() + 13);
+            document.getElementById('ui-cycle-dates').innerText = `Active Sprint: ${formatDate(appState.sprintStartDate)} - ${formatDate(sprintEnd)}`;
+
+            // 1. Reset Balances & Process Ledger
+            appState.accounts.forEach(acc => acc.currentBalance = acc.initialBalance);
+            let cycleIncome = 0; let cycleExpense = 0; let outOfCycleImpact = 0;
+            let categoryTotals = {}; Object.keys(catConfig).forEach(k => categoryTotals[k] = 0);
+
+            appState.transactions.forEach(tx => {
+                // Apply logic to accounts
+                if (tx.isSplit) {
+                    tx.splitDetails.forEach(split => {
+                        const acc = appState.accounts.find(a => a.id === split.accountId);
+                        if(acc) acc.currentBalance += split.amount;
+                    });
+                } else {
+                    const acc = appState.accounts.find(a => a.id === tx.accountId);
+                    if(acc) {
+                        if(tx.type === 'income') acc.currentBalance += tx.amount;
+                        else acc.currentBalance -= tx.amount;
+                    }
+                }
+
+                // Analytics logic
+                if (tx.isOutOfCycle) {
+                    if(tx.type === 'expense') outOfCycleImpact += tx.amount;
+                    else outOfCycleImpact -= tx.amount; // negative impact means gain
+                } else {
+                    if(tx.type === 'income') cycleIncome += tx.amount;
+                    if(tx.type === 'expense') {
+                        cycleExpense += tx.amount;
+                        categoryTotals[tx.category] += tx.amount;
+                    }
+                }
+            });
+
+            // 2. Render Accounts
+            document.getElementById('ui-accounts-grid').innerHTML = appState.accounts.map(acc => `
+                <div class="bg-black/40 border border-white/5 rounded-xl p-4 relative group shadow-lg">
+                    <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-1 truncate">${acc.name}</p>
+                    <div class="number-font text-2xl font-medium ${acc.currentBalance >= 0 ? 'text-white' : 'text-neonRed'}">
+                        $${fmt(acc.currentBalance)}
+                    </div>
+                </div>
+            `).join('');
+
+            // 3. Render Category Bars (Only In-Cycle Expenses)
+            const catContainer = document.getElementById('ui-category-bars');
+            if (cycleExpense === 0) {
+                catContainer.innerHTML = `<div class="text-xs text-gray-600 italic">No in-cycle expenses logged.</div>`;
+            } else {
+                catContainer.innerHTML = Object.entries(categoryTotals)
+                    .filter(([_, amt]) => amt > 0)
+                    .sort((a,b) => b[1] - a[1])
+                    .map(([key, amt]) => {
+                        const pct = ((amt / cycleExpense) * 100).toFixed(1);
+                        const conf = catConfig[key];
+                        return `
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-gray-400">${conf.label}</span>
+                                <span class="font-oswald text-white">$${fmt(amt)} (${pct}%)</span>
+                            </div>
+                            <div class="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-1.5 rounded-full shadow-[0_0_8px_${conf.color}]" style="width: ${pct}%; background-color: ${conf.color}"></div>
+                            </div>
+                        </div>`;
+                    }).join('');
+            }
+
+            // 4. Render Ledger Table
+            const netFlow = cycleIncome - cycleExpense;
+            const netEl = document.getElementById('ui-net-flow');
+            netEl.innerText = `${netFlow >= 0 ? '+' : '-'}$${fmt(Math.abs(netFlow))}`;
+            netEl.className = `number-font text-xl ${netFlow > 0 ? 'text-neonGreen' : netFlow < 0 ? 'text-neonRed' : 'text-gray-400'}`;
+
+            const tbody = document.getElementById('ui-ledger-body');
+            if (appState.transactions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-gray-600 text-xs uppercase tracking-widest">Ledger is empty.</td></tr>`;
+            } else {
+                tbody.innerHTML = appState.transactions.map(t => {
+                    const isInc = t.type === 'income';
+                    let accLabel = appState.accounts.find(a => a.id === t.accountId)?.name || 'Unknown';
+                    if (t.isSplit) accLabel = `<span class="text-neonBlue">Split (2 Accts)</span>`;
+                    
+                    const badge = t.isOutOfCycle 
+                        ? `<span class="ml-2 px-1.5 py-0.5 bg-neonPurple/10 text-neonPurple border border-neonPurple/20 rounded text-[8px] uppercase">Future Recon</span>`
+                        : '';
+
+                    return `
+                        <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">
+                            <td class="py-4 text-gray-400 font-oswald text-xs">${formatDate(t.dateObj)}</td>
+                            <td class="py-4 font-medium text-white text-sm">${t.name} ${badge}</td>
+                            <td class="py-4 text-xs text-gray-500">${accLabel}</td>
+                            <td class="py-4 font-oswald text-sm text-right ${isInc ? 'text-neonGreen' : 'text-gray-300'}">
+                                ${isInc ? '+' : '-'}$${fmt(t.amount)}
+                            </td>
+                            <td class="py-4 text-center" data-html2canvas-ignore>
+                                <button onclick="removeTransaction('${t.id}')" class="text-gray-600 hover:text-neonRed transition-colors opacity-0 group-hover:opacity-100">
+                                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            // 5. Render Vertical Velocity Timeline (In-Cycle Only)
+            const timeline = document.getElementById('ui-timeline-vertical');
+            let timelineHtml = '';
+            for (let i = 0; i < 14; i++) {
+                const tDate = new Date(appState.sprintStartDate);
+                tDate.setDate(tDate.getDate() + i);
+                
+                const dayTxs = appState.transactions.filter(t => 
+                    !t.isOutOfCycle && t.dateObj.getDate() === tDate.getDate() && t.dateObj.getMonth() === tDate.getMonth()
+                );
+
+                const hasInc = dayTxs.some(t => t.type === 'income');
+                const hasExp = dayTxs.some(t => t.type === 'expense');
+                
+                let nodeClass = 'bg-gray-800 border-gray-900';
+                if (hasInc && hasExp) nodeClass = 'bg-neonBlue shadow-[0_0_10px_#00E5FF] border-bgDark';
+                else if (hasInc) nodeClass = 'bg-neonGreen shadow-[0_0_10px_#00E676] border-bgDark';
+                else if (hasExp) nodeClass = 'bg-neonRed shadow-[0_0_10px_#FF1744] border-bgDark';
+
+                if(dayTxs.length > 0 || i === 0 || i === 13) {
+                    const label = dayTxs.map(t => `${t.name} <span class="${t.type==='income'?'text-neonGreen':'text-gray-400'}">(${t.type==='income'?'+':'-'}$${fmt(t.amount)})</span>`).join('<br>');
+                    timelineHtml += `
+                        <div class="relative pl-6 pb-6 group cursor-pointer">
+                            <div class="absolute left-[-5px] top-1 w-2.5 h-2.5 rounded-full border-2 ${nodeClass} transition-transform group-hover:scale-150 z-10"></div>
+                            <div class="text-[10px] text-gray-500 uppercase font-oswald tracking-widest leading-none mb-1">${formatDate(tDate)}</div>
+                            <div class="text-xs text-gray-300 leading-snug">
+                                ${dayTxs.length > 0 ? label : (i === 0 ? '<span class="italic text-gray-600">Sprint Initialization</span>' : '<span class="italic text-gray-600">Sprint Conclusion</span>')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    timelineHtml += `<div class="relative pl-6 pb-4 opacity-30"><div class="absolute left-[-3px] top-1 w-1.5 h-1.5 rounded-full bg-gray-800"></div></div>`;
+                }
+            }
+            timeline.innerHTML = timelineHtml;
+
+            // 6. AI Insights Engine
+            const aiText = document.getElementById('ui-ai-text');
+            if (appState.transactions.length === 0) {
+                aiText.innerHTML = "Awaiting schedule parameters to generate structural insights...";
+            } else {
+                let txt = `The active 14-day sprint is currently tracking a net flow of <span class="${netFlow >= 0 ? 'text-neonGreen' : 'text-neonRed'} font-medium">$${fmt(Math.abs(netFlow))}</span>. `;
+                
+                if (outOfCycleImpact > 0) {
+                    txt += `<br><br><span class="text-neonPurple">Warning:</span> You have logged future reconciliations that drain <span class="text-white font-medium">$${fmt(outOfCycleImpact)}</span> outside this cycle. Ensure global liquidity is maintained.`;
+                } else if (outOfCycleImpact < 0) {
+                    txt += `<br><br><span class="text-neonPurple">Notice:</span> Future income reconciliations project an incoming <span class="text-white font-medium">$${fmt(Math.abs(outOfCycleImpact))}</span> boost to your global balances outside the current sprint parameters.`;
+                } else if (cycleExpense > cycleIncome) {
+                    txt += `Expenditure currently outpaces bi-weekly revenue. Capital reallocation is advised.`;
+                } else {
+                    txt += `Liquidity reserves are stable relative to scheduled cycle outflows.`;
+                }
+                aiText.innerHTML = txt;
+            }
+        }
+    </script>
+</body>
+</html>
