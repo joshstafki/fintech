@@ -714,18 +714,22 @@ function exportToPDF() {
     window.saveToCloud = saveToCloud;
     window.signOutUser = signOutUser;
 
-    // 6. Listen for User Login State changes
-    onAuthStateChanged(auth, async (user) => {
-        const authBtn = document.getElementById('ui-auth-btn');
-        if (user) {
-            authBtn.innerHTML = `Log Out (${user.email.split('@')[0]})`;
-            authBtn.onclick = window.signOutUser;
-            await loadFromCloud(user.uid);
-        } else {
-            authBtn.innerHTML = `Sign In with Google`;
-            authBtn.onclick = window.signInWithGoogle;
-        }
-    });
+// Replace your existing onAuthStateChanged block with this refined version
+onAuthStateChanged(auth, async (user) => {
+    const authBtn = document.getElementById('ui-auth-btn');
+    if (user) {
+        authBtn.innerHTML = `Log Out (${user.email.split('@')[0]})`;
+        authBtn.onclick = window.signOutUser;
+        
+        // Show a loading state if you like
+        console.log("User logged in, fetching data...");
+        await loadFromCloud(user.uid);
+    } else {
+        authBtn.innerHTML = `Sign In with Google`;
+        authBtn.onclick = window.signInWithGoogle;
+        // Optionally clear appState here if a user logs out
+    }
+});
 
     // 7. Authentication Logic
     async function signInWithGoogle() {
