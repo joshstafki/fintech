@@ -68,7 +68,7 @@
         .fade-exit { opacity: 1; }
         .fade-exit-active { opacity: 0; transform: translateY(-10px); transition: opacity 0.3s, transform 0.3s; }
 
-        #modal-overlay { backdrop-filter: blur(8px); }
+        #modal-overlay, #storage-modal { backdrop-filter: blur(8px); }
         .modal-enter { opacity: 0; transform: scale(0.95); }
         .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 0.3s, transform 0.3s; }
         
@@ -220,6 +220,36 @@
         </div>
     </div>
 
+    <div id="storage-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center overflow-y-auto pt-10 pb-10">
+        <div class="glass-panel w-full max-w-sm p-6 modal-enter my-auto border border-neonPurple/30 shadow-[0_0_30px_rgba(179,136,255,0.1)]">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold tracking-tight text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-neonPurple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                    Workspace Storage
+                </h2>
+                <button onclick="closeStorageModal()" class="text-gray-500 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="bg-black/40 p-3 rounded-lg border border-white/5">
+                    <label class="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">Save Active Ledger</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="save-name-input" placeholder="e.g., Q3 Primary Flow" class="flex-1 text-sm py-2">
+                        <button onclick="saveLedgerToLocal()" class="px-4 bg-neonPurple/20 text-neonPurple border border-neonPurple/50 font-semibold rounded-lg hover:bg-neonPurple/30 transition-colors text-xs tracking-widest uppercase">Save</button>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-white/10">
+                    <label class="text-[10px] text-gray-500 uppercase tracking-widest mb-3 block">Load Saved Ledger</label>
+                    <div id="saved-ledgers-list" class="space-y-2 max-h-[150px] overflow-y-auto pr-2">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="main-dashboard" class="hidden w-full max-w-[1400px] min-h-screen p-4 md:p-8 flex-col gap-6" id="pdf-export-area">
         
         <header class="flex flex-col md:flex-row justify-between items-center gap-4 glass-panel p-4 px-6 z-50 border-b border-white/10" data-html2canvas-ignore>
@@ -238,6 +268,10 @@
                 <button onclick="openModal()" class="bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     New Transaction
+                </button>
+                <button onclick="openStorageModal()" class="bg-white/5 border border-white/10 text-white hover:bg-white/10 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-medium transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+                    Save / Load
                 </button>
             </div>
         </header>
@@ -491,6 +525,60 @@
                 jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
             };
             html2pdf().set(opt).from(element).save();
+        }
+
+        // --- Data Persistence Engine (Local Storage) ---
+        function openStorageModal() {
+            const list = document.getElementById('saved-ledgers-list');
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('ledger_'));
+            
+            if (keys.length === 0) {
+                list.innerHTML = '<p class="text-xs text-gray-600 italic">No saved workspaces found in local memory.</p>';
+            } else {
+                list.innerHTML = keys.map(k => {
+                    const name = k.replace('ledger_', '');
+                    return `
+                        <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10 hover:border-neonPurple hover:bg-neonPurple/5 transition-all group cursor-pointer" onclick="loadLedgerFromLocal('${name}')">
+                            <span class="text-sm text-gray-300 group-hover:text-white font-medium">${name}</span>
+                            <span class="text-[10px] text-neonPurple uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Recall</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            document.getElementById('storage-modal').classList.remove('hidden');
+        }
+
+        function closeStorageModal() {
+            document.getElementById('storage-modal').classList.add('hidden');
+        }
+
+        function saveLedgerToLocal() {
+            const name = document.getElementById('save-name-input').value.trim();
+            if (!name) return;
+            
+            // Serialize and save to browser storage
+            localStorage.setItem('ledger_' + name, JSON.stringify(appState));
+            document.getElementById('save-name-input').value = '';
+            
+            // Refresh UI to show newly saved file
+            openStorageModal(); 
+        }
+
+        function loadLedgerFromLocal(name) {
+            const data = localStorage.getItem('ledger_' + name);
+            if (data) {
+                appState = JSON.parse(data);
+                
+                // CRITICAL: Re-hydrate Date objects from JSON strings
+                appState.sprintStartDate = new Date(appState.sprintStartDate);
+                appState.transactions.forEach(tx => {
+                    tx.dateObj = new Date(tx.dateObj);
+                });
+                
+                renderDashboard();
+                closeStorageModal();
+            }
         }
 
         // --- Core Rendering Engine ---
