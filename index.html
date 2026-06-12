@@ -68,7 +68,7 @@
         .fade-exit { opacity: 1; }
         .fade-exit-active { opacity: 0; transform: translateY(-10px); transition: opacity 0.3s, transform 0.3s; }
 
-        #modal-overlay, #storage-modal { backdrop-filter: blur(8px); }
+        #modal-overlay { backdrop-filter: blur(8px); }
         .modal-enter { opacity: 0; transform: scale(0.95); }
         .modal-enter-active { opacity: 1; transform: scale(1); transition: opacity 0.3s, transform 0.3s; }
         
@@ -78,7 +78,7 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center text-sm">
+<body class="min-h-[100dvh] flex flex-col items-center justify-center text-sm">
 
     <div id="onboarding-flow" class="w-full max-w-lg p-6 glass-panel relative z-50">
         <div id="step-1" class="space-y-6">
@@ -135,7 +135,7 @@
     </div>
 
     <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center overflow-y-auto pt-10 pb-10">
-        <div id="transaction-modal" class="glass-panel w-full max-w-md p-6 modal-enter my-auto">
+        <div id="transaction-modal" class="glass-panel w-full max-w-md p-4 md:p-6 modal-enter my-auto max-h-[90dvh] overflow-y-auto">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-semibold tracking-tight">Configure Ledger Entry</h2>
                 <button onclick="closeModal()" class="text-gray-500 hover:text-white transition-colors">
@@ -220,36 +220,6 @@
         </div>
     </div>
 
-    <div id="storage-modal" class="fixed inset-0 bg-black/60 z-[100] hidden flex items-center justify-center overflow-y-auto pt-10 pb-10">
-        <div class="glass-panel w-full max-w-sm p-6 modal-enter my-auto border border-neonPurple/30 shadow-[0_0_30px_rgba(179,136,255,0.1)]">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-semibold tracking-tight text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-neonPurple" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                    Workspace Storage
-                </h2>
-                <button onclick="closeStorageModal()" class="text-gray-500 hover:text-white transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            
-            <div class="space-y-4">
-                <div class="bg-black/40 p-3 rounded-lg border border-white/5">
-                    <label class="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block">Save Active Ledger</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="save-name-input" placeholder="e.g., Q3 Primary Flow" class="flex-1 text-sm py-2">
-                        <button onclick="saveLedgerToLocal()" class="px-4 bg-neonPurple/20 text-neonPurple border border-neonPurple/50 font-semibold rounded-lg hover:bg-neonPurple/30 transition-colors text-xs tracking-widest uppercase">Save</button>
-                    </div>
-                </div>
-
-                <div class="pt-4 border-t border-white/10">
-                    <label class="text-[10px] text-gray-500 uppercase tracking-widest mb-3 block">Load Saved Ledger</label>
-                    <div id="saved-ledgers-list" class="space-y-2 max-h-[150px] overflow-y-auto pr-2">
-                        </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div id="main-dashboard" class="hidden w-full max-w-[1400px] min-h-screen p-4 md:p-8 flex-col gap-6" id="pdf-export-area">
         
         <header class="flex flex-col md:flex-row justify-between items-center gap-4 glass-panel p-4 px-6 z-50 border-b border-white/10" data-html2canvas-ignore>
@@ -260,20 +230,26 @@
                     <p class="text-xs text-neonBlue uppercase tracking-widest font-semibold" id="ui-cycle-dates">Active Sprint: Synchronizing...</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3">
-                <button onclick="exportToPDF()" class="bg-white/5 border border-white/10 text-white hover:bg-white/10 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-medium transition-colors flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    Export PDF
-                </button>
-                <button onclick="openModal()" class="bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    New Transaction
-                </button>
-                <button onclick="openStorageModal()" class="bg-white/5 border border-white/10 text-white hover:bg-white/10 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-medium transition-colors flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
-                    Save / Load
-                </button>
-            </div>
+         <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto mt-4 md:mt-0">
+    
+    <button id="ui-save-btn" onclick="saveToCloud()" class="bg-neonPurple/20 text-neonPurple border border-neonPurple/50 hover:bg-neonPurple/30 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-medium transition-colors flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+        Sync to Cloud
+    </button>
+
+    <button id="ui-auth-btn" class="bg-white/5 border border-white/10 text-white hover:bg-white/10 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-medium transition-colors">
+        Connecting...
+    </button>
+
+    <button onclick="exportToPDF()" class="bg-white/5 border border-white/10 text-white hover:bg-white/10 px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-medium transition-colors flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        Export PDF
+    </button>
+    <button onclick="openModal()" class="bg-white text-black hover:bg-gray-200 px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        New Transaction
+    </button>
+</div>
         </header>
 
         <section class="glass-panel p-6 flex flex-col relative overflow-hidden bg-gradient-to-br from-[#121316] to-[#0A0A0B]">
@@ -301,11 +277,11 @@
                         <h3 class="text-sm text-gray-300 uppercase tracking-widest">Comprehensive Ledger</h3>
                         <div class="text-right">
                             <p class="text-[10px] text-gray-500 uppercase tracking-widest">In-Cycle Net Flow</p>
-                            <p class="number-font text-xl" id="ui-net-flow">$0.00</p>
+                            <p class="number-font text-lg md:text-xl" id="ui-net-flow">$0.00</p>
                         </div>
                     </div>
-                    <div class="overflow-y-auto pr-2 flex-1 border-t border-white/5 pt-2">
-                        <table class="w-full text-left border-collapse">
+                    <div class="overflow-x-auto overflow-y-auto pr-2 flex-1 border-t border-white/5 pt-2">
+                        <table class="w-full text-left border-collapse min-w-[550px]">
                             <thead>
                                 <tr class="text-gray-500 text-[10px] uppercase tracking-widest border-b border-white/5">
                                     <th class="pb-3 font-medium w-24">Date</th>
@@ -355,10 +331,8 @@
             accounts: [], 
             transactions: [] // { id, name, accountId, type, category, amount, dateObj, isOutOfCycle, isSplit, splitDetails }
         };
-
         const fmt = (num) => num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const formatDate = (date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
         // Category Map for styling
         const catConfig = {
             operations: { label: 'Operations & Tech', color: '#00E5FF' },
@@ -369,7 +343,6 @@
             savings: { label: 'Savings', color: '#F4D03F' },
             other: { label: 'Other', color: '#9CA3AF' }
         };
-
         // --- Navigation & Onboarding ---
         function nextStep(current, next) {
             document.getElementById(`step-${current}`).classList.add('hidden');
@@ -401,7 +374,6 @@
                 const balance = parseFloat(row.querySelector('.acc-balance').value) || 0;
                 appState.accounts.push({ id: 'acc_' + Date.now() + index, name, initialBalance: balance, currentBalance: balance });
             });
-
             if(appState.accounts.length === 0) {
                 appState.accounts.push({ id: 'acc_default', name: 'Primary Wallet', initialBalance: 0, currentBalance: 0 });
             }
@@ -488,7 +460,6 @@
                 isSplit: isSplit,
                 amount: totalAmount
             };
-
             if (isSplit) {
                 const splitAmt1 = parseFloat(document.getElementById('tx-split-amount').value) || 0;
                 const splitAmt2 = Math.max(totalAmount - splitAmt1, 0);
@@ -497,7 +468,7 @@
                     { accountId: document.getElementById('tx-split-account').value, amount: splitAmt2 }
                 ];
                 // Display primary account in basic ledger
-                tx.accountId = document.getElementById('tx-account').value; 
+                tx.accountId = document.getElementById('tx-account').value;
             } else {
                 tx.accountId = document.getElementById('tx-account').value;
             }
@@ -514,80 +485,39 @@
             renderDashboard();
         }
 
-        // --- PDF Export ---
-        function exportToPDF() {
-            const element = document.getElementById('main-dashboard');
-            const opt = {
-                margin:       0.2,
-                filename:     `Ledger_Export_${formatDate(new Date())}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#0A0A0B' },
-                jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
-            };
-            html2pdf().set(opt).from(element).save();
-        }
+   // --- PDF Export ---
+function exportToPDF() {
+    const element = document.getElementById('main-dashboard');
+    
+    // 1. Temporarily lock the width. This forces the dashboard to render 
+    // in a clean, desktop-style grid rather than squishing into a mobile layout
+    // when mapped to a vertical portrait sheet.
+    element.classList.remove('w-full', 'max-w-[1400px]');
+    element.classList.add('w-[1024px]', 'max-w-[1024px]');
 
-        // --- Data Persistence Engine (Local Storage) ---
-function openStorageModal() {
-            const list = document.getElementById('saved-ledgers-list');
-            const keys = Object.keys(localStorage).filter(k => k.startsWith('ledger_'));
-            
-            if (keys.length === 0) {
-                list.innerHTML = '<p class="text-xs text-gray-600 italic">No saved workspaces found in local memory.</p>';
-            } else {
-                list.innerHTML = keys.map(k => {
-                    const name = k.replace('ledger_', '');
-                    return `
-                        <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10 hover:border-neonPurple hover:bg-neonPurple/5 transition-all group cursor-pointer" onclick="loadLedgerFromLocal('${name}')">
-                            <span class="text-sm text-gray-300 group-hover:text-white font-medium">${name}</span>
-                            <span class="text-[10px] text-neonPurple uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Recall</span>
-                        </div>
-                    `;
-                }).join('');
-            }
-            
-            // FIX: Target the inner panel to trigger the fade-in animation
-            const modal = document.getElementById('storage-modal');
-            const innerPanel = modal.querySelector('.modal-enter');
-            modal.classList.remove('hidden');
-            setTimeout(() => innerPanel.classList.add('modal-enter-active'), 10);
+    const opt = {
+        margin:       [0.4, 0.4, 0.4, 0.4], // Uniform margins for framing
+        filename:     `Ledger_Export_${formatDate(new Date())}.pdf`,
+        image:        { type: 'jpeg', quality: 1.0 }, // Maximize image quality
+        html2canvas:  { 
+            scale: 3, // Triples the pixel density for crisp fonts and graphics
+            useCORS: true, 
+            backgroundColor: '#0A0A0B',
+            windowWidth: 1024 // Aligns the canvas render with our locked width
+        },
+        jsPDF:        { 
+            unit: 'in', 
+            format: 'letter', 
+            orientation: 'portrait' // Sets the vertical sheet orientation
         }
+    };
 
-        function closeStorageModal() {
-            const modal = document.getElementById('storage-modal');
-            const innerPanel = modal.querySelector('.modal-enter');
-            
-            // FIX: Trigger the fade-out animation before hiding the container
-            innerPanel.classList.remove('modal-enter-active');
-            setTimeout(() => modal.classList.add('hidden'), 300);
-        }
-
-        function saveLedgerToLocal() {
-            const name = document.getElementById('save-name-input').value.trim();
-            if (!name) return;
-            
-            // Serialize and save to browser storage
-            localStorage.setItem('ledger_' + name, JSON.stringify(appState));
-            document.getElementById('save-name-input').value = '';
-            
-            // FIX: Automatically close the menu after successfully saving
-            closeStorageModal(); 
-        }
-        function loadLedgerFromLocal(name) {
-            const data = localStorage.getItem('ledger_' + name);
-            if (data) {
-                appState = JSON.parse(data);
-                
-                // CRITICAL: Re-hydrate Date objects from JSON strings
-                appState.sprintStartDate = new Date(appState.sprintStartDate);
-                appState.transactions.forEach(tx => {
-                    tx.dateObj = new Date(tx.dateObj);
-                });
-                
-                renderDashboard();
-                closeStorageModal();
-            }
-        }
+    // 2. Generate the PDF, then immediately restore the responsive classes
+    html2pdf().set(opt).from(element).save().then(() => {
+        element.classList.remove('w-[1024px]', 'max-w-[1024px]');
+        element.classList.add('w-full', 'max-w-[1400px]');
+    });
+}
 
         // --- Core Rendering Engine ---
         function renderDashboard() {
@@ -595,11 +525,11 @@ function openStorageModal() {
             const sprintEnd = new Date(appState.sprintStartDate);
             sprintEnd.setDate(sprintEnd.getDate() + 13);
             document.getElementById('ui-cycle-dates').innerText = `Active Sprint: ${formatDate(appState.sprintStartDate)} - ${formatDate(sprintEnd)}`;
-
             // 1. Reset Balances & Process Ledger
             appState.accounts.forEach(acc => acc.currentBalance = acc.initialBalance);
             let cycleIncome = 0; let cycleExpense = 0; let outOfCycleImpact = 0;
-            let categoryTotals = {}; Object.keys(catConfig).forEach(k => categoryTotals[k] = 0);
+            let categoryTotals = {};
+            Object.keys(catConfig).forEach(k => categoryTotals[k] = 0);
 
             appState.transactions.forEach(tx => {
                 // Apply logic to accounts
@@ -628,7 +558,6 @@ function openStorageModal() {
                     }
                 }
             });
-
             // 2. Render Accounts
             document.getElementById('ui-accounts-grid').innerHTML = appState.accounts.map(acc => `
                 <div class="bg-black/40 border border-white/5 rounded-xl p-4 relative group shadow-lg">
@@ -638,7 +567,6 @@ function openStorageModal() {
                     </div>
                 </div>
             `).join('');
-
             // 3. Render Category Bars (Only In-Cycle Expenses)
             const catContainer = document.getElementById('ui-category-bars');
             if (cycleExpense === 0) {
@@ -667,8 +595,7 @@ function openStorageModal() {
             const netFlow = cycleIncome - cycleExpense;
             const netEl = document.getElementById('ui-net-flow');
             netEl.innerText = `${netFlow >= 0 ? '+' : '-'}$${fmt(Math.abs(netFlow))}`;
-            netEl.className = `number-font text-xl ${netFlow > 0 ? 'text-neonGreen' : netFlow < 0 ? 'text-neonRed' : 'text-gray-400'}`;
-
+            netEl.className = `number-font text-lg md:text-xl ${netFlow > 0 ? 'text-neonGreen' : netFlow < 0 ? 'text-neonRed' : 'text-gray-400'}`;
             const tbody = document.getElementById('ui-ledger-body');
             if (appState.transactions.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-gray-600 text-xs uppercase tracking-widest">Ledger is empty.</td></tr>`;
@@ -710,15 +637,12 @@ function openStorageModal() {
                 const dayTxs = appState.transactions.filter(t => 
                     !t.isOutOfCycle && t.dateObj.getDate() === tDate.getDate() && t.dateObj.getMonth() === tDate.getMonth()
                 );
-
                 const hasInc = dayTxs.some(t => t.type === 'income');
                 const hasExp = dayTxs.some(t => t.type === 'expense');
-                
                 let nodeClass = 'bg-gray-800 border-gray-900';
                 if (hasInc && hasExp) nodeClass = 'bg-neonBlue shadow-[0_0_10px_#00E5FF] border-bgDark';
                 else if (hasInc) nodeClass = 'bg-neonGreen shadow-[0_0_10px_#00E676] border-bgDark';
                 else if (hasExp) nodeClass = 'bg-neonRed shadow-[0_0_10px_#FF1744] border-bgDark';
-
                 if(dayTxs.length > 0 || i === 0 || i === 13) {
                     const label = dayTxs.map(t => `${t.name} <span class="${t.type==='income'?'text-neonGreen':'text-gray-400'}">(${t.type==='income'?'+':'-'}$${fmt(t.amount)})</span>`).join('<br>');
                     timelineHtml += `
@@ -735,13 +659,12 @@ function openStorageModal() {
                 }
             }
             timeline.innerHTML = timelineHtml;
-
             // 6. AI Insights Engine
             const aiText = document.getElementById('ui-ai-text');
             if (appState.transactions.length === 0) {
                 aiText.innerHTML = "Awaiting schedule parameters to generate structural insights...";
             } else {
-                let txt = `The active 14-day sprint is currently tracking a net flow of <span class="${netFlow >= 0 ? 'text-neonGreen' : 'text-neonRed'} font-medium">$${fmt(Math.abs(netFlow))}</span>. `;
+                let txt = `The active 14-day sprint is currently tracking a net flow of <span class="${netFlow >= 0 ? 'text-neonGreen' : 'text-neonRed'} font-medium">$${fmt(Math.abs(netFlow))}</span>.`;
                 
                 if (outOfCycleImpact > 0) {
                     txt += `<br><br><span class="text-neonPurple">Warning:</span> You have logged future reconciliations that drain <span class="text-white font-medium">$${fmt(outOfCycleImpact)}</span> outside this cycle. Ensure global liquidity is maintained.`;
@@ -756,5 +679,116 @@ function openStorageModal() {
             }
         }
     </script>
+<script type="module">
+    // 1. Core Firebase Imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-analytics.js";
+    
+    // 2. Auth & Database Imports (Matching Version 12.14.0)
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+    // 3. Your Specific Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyDLaUQzt1DzvhP6tPlp1S2UPW_MGKnVfHs",
+        authDomain: "fintech20-26.firebaseapp.com",
+        projectId: "fintech20-26",
+        storageBucket: "fintech20-26.firebasestorage.app",
+        messagingSenderId: "151994118017",
+        appId: "1:151994118017:web:4702e7e0de34817c7b8280",
+        measurementId: "G-K36ZTH106Z"
+    };
+
+    // 4. Initialize Services
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    // 5. Expose Functions to the Global Window (for HTML onclick events)
+    window.cloudAuth = auth;
+    window.cloudDb = db;
+    window.cloudProvider = provider;
+    window.signInWithGoogle = signInWithGoogle;
+    window.saveToCloud = saveToCloud;
+    window.signOutUser = signOutUser;
+
+    // 6. Listen for User Login State changes
+    onAuthStateChanged(auth, async (user) => {
+        const authBtn = document.getElementById('ui-auth-btn');
+        if (user) {
+            authBtn.innerHTML = `Log Out (${user.email.split('@')[0]})`;
+            authBtn.onclick = window.signOutUser;
+            await loadFromCloud(user.uid);
+        } else {
+            authBtn.innerHTML = `Sign In with Google`;
+            authBtn.onclick = window.signInWithGoogle;
+        }
+    });
+
+    // 7. Authentication Logic
+    async function signInWithGoogle() {
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (error) {
+            console.error("Authentication Error:", error);
+            alert("Failed to sign in.");
+        }
+    }
+
+    async function signOutUser() {
+        await signOut(auth);
+        location.reload(); // Refresh the page to clear the dashboard state
+    }
+
+    // 8. Cloud Storage Logic
+    async function saveToCloud() {
+        const user = auth.currentUser;
+        if (!user) return alert("You must be signed in to save to the cloud.");
+        
+        try {
+            // Serialize data to strip out non-transferable objects
+            const safeState = JSON.parse(JSON.stringify(appState)); 
+            
+            // Save to Firestore under a document named with the user's unique ID
+            await setDoc(doc(db, "ledgers", user.uid), safeState);
+            
+            // Visual feedback on the button
+            const saveBtn = document.getElementById('ui-save-btn');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = "Saved!";
+            setTimeout(() => saveBtn.innerHTML = originalText, 2000);
+        } catch (error) {
+            console.error("Save Error:", error);
+            alert("Failed to sync to cloud.");
+        }
+    }
+
+    async function loadFromCloud(uid) {
+        try {
+            const docSnap = await getDoc(doc(db, "ledgers", uid));
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                
+                // Re-hydrate the state engine
+                appState = data;
+                
+                // CRITICAL: Convert stored date strings back into native Javascript Date objects
+                appState.sprintStartDate = new Date(appState.sprintStartDate);
+                appState.transactions.forEach(tx => {
+                    tx.dateObj = new Date(tx.dateObj);
+                });
+                
+                // Push the loaded data into the UI
+                if (typeof window.renderDashboard === 'function') {
+                    window.renderDashboard();
+                }
+            }
+        } catch (error) {
+            console.error("Load Error:", error);
+        }
+    }
+</script>
 </body>
 </html>
