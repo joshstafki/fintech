@@ -528,7 +528,7 @@
         }
 
         // --- Data Persistence Engine (Local Storage) ---
-        function openStorageModal() {
+function openStorageModal() {
             const list = document.getElementById('saved-ledgers-list');
             const keys = Object.keys(localStorage).filter(k => k.startsWith('ledger_'));
             
@@ -546,11 +546,20 @@
                 }).join('');
             }
             
-            document.getElementById('storage-modal').classList.remove('hidden');
+            // FIX: Target the inner panel to trigger the fade-in animation
+            const modal = document.getElementById('storage-modal');
+            const innerPanel = modal.querySelector('.modal-enter');
+            modal.classList.remove('hidden');
+            setTimeout(() => innerPanel.classList.add('modal-enter-active'), 10);
         }
 
         function closeStorageModal() {
-            document.getElementById('storage-modal').classList.add('hidden');
+            const modal = document.getElementById('storage-modal');
+            const innerPanel = modal.querySelector('.modal-enter');
+            
+            // FIX: Trigger the fade-out animation before hiding the container
+            innerPanel.classList.remove('modal-enter-active');
+            setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
         function saveLedgerToLocal() {
@@ -561,10 +570,9 @@
             localStorage.setItem('ledger_' + name, JSON.stringify(appState));
             document.getElementById('save-name-input').value = '';
             
-            // Refresh UI to show newly saved file
-            openStorageModal(); 
+            // FIX: Automatically close the menu after successfully saving
+            closeStorageModal(); 
         }
-
         function loadLedgerFromLocal(name) {
             const data = localStorage.getItem('ledger_' + name);
             if (data) {
