@@ -197,16 +197,6 @@
             border-bottom: 2px dashed var(--border-color);
         }
 
-        /* Hide number arrows for clean UI */
-        .ghost-input::-webkit-outer-spin-button,
-        .ghost-input::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-        .ghost-input[type=number] {
-            -moz-appearance: textfield;
-        }
-
         @media (max-width: 768px) {
             body { padding: 1rem; }
             .dashboard-grid { grid-template-columns: 1fr; }
@@ -311,72 +301,34 @@
     </div>
 
     <script>
-        // ---------------------------------------------------------
-        // 1. GLOBAL STATE & CALCULATIONS
-        // ---------------------------------------------------------
-        
-        // Track the totals globally so we can do math on them
-        const expenseTotals = {
-            Out_Of_Pocket: 0,
-            Bank_Initiated: 0
-        };
+        const expenseTotals = { Out_Of_Pocket: 0, Bank_Initiated: 0 };
 
         const calculateRevenue = () => {
             const spendableInput = document.getElementById('spendable-income');
             const revenueDisplay = document.getElementById('actual-revenue');
-            
-            // Get the current typed income
             const spendable = parseFloat(spendableInput.value) || 0;
-            
-            // Save it to device memory so it survives page refreshes
             localStorage.setItem('savedSpendableIncome', spendable);
-
-            // Math: Income minus the sum of both expense tables
             const totalExpenses = expenseTotals.Out_Of_Pocket + expenseTotals.Bank_Initiated;
             const actualRevenue = spendable - totalExpenses;
-
-            // Update the screen
             revenueDisplay.innerText = formatMoney(actualRevenue);
-            
-            // Visual warning if revenue drops below zero
-            if (actualRevenue < 0) {
-                revenueDisplay.style.color = 'var(--danger-red)';
-            } else {
-                revenueDisplay.style.color = 'var(--text-main)';
-            }
+            revenueDisplay.style.color = (actualRevenue < 0) ? 'var(--danger-red)' : 'var(--text-main)';
         };
 
-        // Load the saved income from memory when the app starts
         const loadSavedIncome = () => {
             const savedIncome = localStorage.getItem('savedSpendableIncome');
-            if (savedIncome !== null) {
-                document.getElementById('spendable-income').value = savedIncome;
-            }
+            if (savedIncome !== null) document.getElementById('spendable-income').value = savedIncome;
         };
 
-        // ---------------------------------------------------------
-        // 2. FORMATTING HELPERS
-        // ---------------------------------------------------------
-        
         const formatMoney = (amount) => {
             const num = parseFloat(amount);
-            if (isNaN(num)) return '$0.00';
-            
-            // Formats with negative sign before the dollar sign if needed (e.g., -$5.00)
-            return (num < 0 ? '-' : '') + '$' + Math.abs(num).toFixed(2);
+            return (isNaN(num) ? '$0.00' : (num < 0 ? '-' : '') + '$' + Math.abs(num).toFixed(2));
         };
 
         const getBadgeClass = (status) => {
             if (!status) return '';
             const s = status.toString().toUpperCase();
-            if(s === 'PAID' || s === 'AVAILABLE') return `badge-${s.toLowerCase()}`;
-            if(s === 'USED') return 'badge-used';
-            return '';
+            return (s === 'PAID' || s === 'AVAILABLE') ? `badge-${s.toLowerCase()}` : (s === 'USED' ? 'badge-used' : '');
         };
-
-        // ---------------------------------------------------------
-        // 3. INTERACTIVE UI FUNCTIONS
-        // ---------------------------------------------------------
 
         const openInlineForm = (tbodyId) => {
             document.getElementById(`add-btn-${tbodyId}`).style.display = 'none';
@@ -389,185 +341,66 @@
             const nameInput = document.getElementById(`input-name-${tbodyId}`);
             const statusInput = document.getElementById(`input-status-${tbodyId}`);
             const saveBtn = statusInput.nextElementSibling;
-
             const amount = parseFloat(amountInput.value);
             const name = nameInput.value.trim();
             const status = statusInput.value;
 
-            if (!amount || !name) {
-                alert("Please enter both an amount and a name.");
-                return;
-            }
+            if (!amount || !name) { alert("Please enter both an amount and a name."); return; }
+            saveBtn.innerText = '...'; saveBtn.disabled = true;
 
-            saveBtn.innerText = '...';
-            saveBtn.disabled = true;
-
-            // Paste the URL you just copied from the Deploy menu here:
             const scriptURL = "https://script.google.com/macros/s/AKfycbzv8nN_pnwlCEaS6cPZ4b7qkl8y0Klb-oHO8eY3k-gao9HG_M5yeuWi2is0aJC3cbohnw/exec"; 
-
-            const expenseData = {
-                tabName: tabName,
-                row: [amount, name, "", status] 
-            };
+            const expenseData = { tabName: tabName, row: [amount, name, "", status] };
 
             try {
-                // Send to Google Apps Script
-                await fetch(scriptURL, {
-                    method: "POST",
-                    mode: "no-cors",
-                    headers: { "Content-Type": "text/plain" },
-                    body: JSON.stringify(expenseData)
-                });
-                
-                // Success: Refresh the dashboard
-                setTimeout(async () => {
-                    await loadDashboard();
-                }, 1000); // 1-second delay to give Google Sheets time to record the row
-                
+                await fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
+                setTimeout(async () => { await loadDashboard(); }, 1000);
             } catch (error) {
                 console.error("Error saving data:", error);
-                alert("The request failed. Check the console for details.");
-                saveBtn.innerText = 'Save';
-                saveBtn.disabled = false;
+                alert("Failed to save data.");
+                saveBtn.innerText = 'Save'; saveBtn.disabled = false;
             }
         };
 
-            try {
-                // Bypass the strict browser origin check
-                await fetch(scriptURL, {
-                    method: "POST",
-                    mode: "no-cors",
-                    headers: {
-                        "Content-Type": "text/plain"
-                    },
-                    body: JSON.stringify(expenseData)
-                });
-                
-                // Wait 600ms for the spreadsheet to update, then reload the dashboard
-                setTimeout(async () => {
-                    await loadDashboard();
-                }, 600);
-                
-            } catch (error) {
-                console.error("Error saving data:", error);
-                alert("Failed to save data. Please check the console.");
-                saveBtn.innerText = 'Save';
-                saveBtn.style.background = 'var(--success-green)';
-                saveBtn.disabled = false;
-            }
-        };
-
-        // ---------------------------------------------------------
-        // 4. RENDER FUNCTIONS
-        // ---------------------------------------------------------
-        
         const renderExpenseTable = (liveData, tbodyId, totalId, tabName) => {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = ''; 
             let total = 0;
-            
             liveData.forEach(item => {
                 if (!item.Name) return; 
                 const amount = item.Amount || 0;
                 total += amount;
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td class="amount-cell amount-red">${formatMoney(amount)}</td>
-                        <td>${item.Name || ''}</td>
-                        <td><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span></td>
-                    </tr>
-                `;
+                tbody.innerHTML += `<tr><td class="amount-cell amount-red">${formatMoney(amount)}</td><td>${item.Name || ''}</td><td><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span></td></tr>`;
             });
-
-            // Update the global state so calculateRevenue() can access it
-            if (tabName === 'Out_Of_Pocket' || tabName === 'Bank_Initiated') {
-                expenseTotals[tabName] = total;
-            }
-
-            tbody.innerHTML += `
-                <tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')">
-                    <td colspan="3">+ Add New Expense</td>
-                </tr>
+            if (tabName === 'Out_Of_Pocket' || tabName === 'Bank_Initiated') expenseTotals[tabName] = total;
+            tbody.innerHTML += `<tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')"><td colspan="3">+ Add New Expense</td></tr>
                 <tr id="inline-form-${tbodyId}" style="display: none; background-color: #f9fafb;">
                     <td><input type="number" id="input-amount-${tbodyId}" class="inline-input" placeholder="0.00" step="0.01"></td>
                     <td><input type="text" id="input-name-${tbodyId}" class="inline-input" placeholder="Name"></td>
-                    <td>
-                        <div style="display: flex; gap: 0.5rem; align-items: center;">
-                            <select id="input-status-${tbodyId}" class="inline-input">
-                                <option value="PAID">PAID</option>
-                                <option value="UNPAID">UNPAID</option>
-                            </select>
-                            <button class="save-btn" onclick="saveInlineExpense('${tbodyId}', '${tabName}')">Save</button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-
+                    <td><div style="display: flex; gap: 0.5rem; align-items: center;"><select id="input-status-${tbodyId}" class="inline-input"><option value="PAID">PAID</option><option value="UNPAID">UNPAID</option></select><button class="save-btn" onclick="saveInlineExpense('${tbodyId}', '${tabName}')">Save</button></div></td>
+                </tr>`;
             document.getElementById(totalId).innerText = formatMoney(total);
         };
 
         const renderFillUps = (liveData) => {
             const tbody = document.getElementById('fill-ups-body');
             tbody.innerHTML = '';
-            
-            liveData.forEach(item => {
-                if (!item.Name) return;
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${item.Name}</td>
-                        <td style="text-align: right;"><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span></td>
-                    </tr>
-                `;
-            });
+            liveData.forEach(item => { if (item.Name) tbody.innerHTML += `<tr><td>${item.Name}</td><td style="text-align: right;"><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span></td></tr>`; });
         };
 
         const renderReconciliation = (liveData, tbodyId) => {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = '';
             let balance = 0;
-            
             liveData.forEach(item => {
                 if (!item.Name) return; 
                 const amount = parseFloat(item.Amount) || 0;
-                const type = (item.Type || '').toString().toUpperCase();
-                
-                if (type === 'STARTING') {
-                    balance += amount;
-                    tbody.innerHTML += `
-                        <tr style="background: #f9fafb;">
-                            <td class="amount-cell" style="font-weight: bold;">${formatMoney(amount)}</td>
-                            <td style="text-align: right; color: var(--text-muted);">${item.Name} (STARTING)</td>
-                        </tr>
-                    `;
-                } else {
-                    balance -= amount; 
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${item.Name}</td>
-                            <td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td>
-                        </tr>
-                    `;
-                }
+                if ((item.Type || '').toString().toUpperCase() === 'STARTING') { balance += amount; tbody.innerHTML += `<tr style="background: #f9fafb;"><td class="amount-cell" style="font-weight: bold;">${formatMoney(amount)}</td><td style="text-align: right; color: var(--text-muted);">${item.Name} (STARTING)</td></tr>`; }
+                else { balance -= amount; tbody.innerHTML += `<tr><td>${item.Name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`; }
             });
-            
             const isReconciled = balance === 0;
-            const statusText = isReconciled ? 'RECONCILED' : 'NOT RECONCILED';
-            const statusColor = isReconciled ? 'var(--success-green)' : 'var(--danger-red)';
-            const balanceColorClass = balance < 0 ? 'amount-red' : (balance === 0 ? 'amount-green' : '');
-
-            tbody.innerHTML += `
-                <tr class="total-row">
-                    <td class="${balanceColorClass}">${formatMoney(balance)}</td>
-                    <td style="text-align: right; font-size: 0.8rem; color: ${statusColor};">${statusText}</td>
-                </tr>
-            `;
+            tbody.innerHTML += `<tr class="total-row"><td class="${balance < 0 ? 'amount-red' : (balance === 0 ? 'amount-green' : '')}">${formatMoney(balance)}</td><td style="text-align: right; font-size: 0.8rem; color: ${isReconciled ? 'var(--success-green)' : 'var(--danger-red)'};">${isReconciled ? 'RECONCILED' : 'NOT RECONCILED'}</td></tr>`;
         };
 
-        // ---------------------------------------------------------
-        // 5. FETCH AND INITIALIZE DATABASE
-        // ---------------------------------------------------------
-        
         const sheetURLs = [
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=0&single=true&output=csv",
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=1661018450&single=true&output=csv",
@@ -576,41 +409,24 @@
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=1532222316&single=true&output=csv"
         ];
 
-        const fetchSheet = (url) => {
-            return new Promise((resolve, reject) => {
-                Papa.parse(url, {
-                    download: true,
-                    header: true,
-                    dynamicTyping: true,
-                    complete: function(results) { resolve(results.data); },
-                    error: function(error) { reject(error); }
-                });
-            });
-        };
+        const fetchSheet = (url) => new Promise((resolve, reject) => {
+            Papa.parse(url + "&t=" + new Date().getTime(), { download: true, header: true, dynamicTyping: true, complete: (res) => resolve(res.data), error: reject });
+        });
 
         const loadDashboard = async () => {
             try {
-                loadSavedIncome(); // Pull the saved income before calculating
-
+                loadSavedIncome();
                 const datasets = await Promise.all(sheetURLs.map(url => fetchSheet(url)));
-                
                 renderExpenseTable(datasets[0], 'out-of-pocket-body', 'out-of-pocket-total', 'Out_Of_Pocket');
                 renderExpenseTable(datasets[1], 'bank-initiated-body', 'bank-initiated-total', 'Bank_Initiated');
                 renderFillUps(datasets[2]);
                 renderReconciliation(datasets[3], 'bank-recon-body');
                 renderReconciliation(datasets[4], 'grocery-budget-body');
-                
-                // Now that the tables are rendered and totals are calculated, do the math!
                 calculateRevenue();
-                
-            } catch (error) {
-                console.error("Error fetching database tabs:", error);
-            }
+            } catch (error) { console.error("Error fetching data:", error); }
         };
 
-        // Start the engine
         loadDashboard();
-
     </script>
 </body>
 </html>
