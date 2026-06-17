@@ -223,17 +223,40 @@
                 </tr>`;
         };
 
-        const renderReconciliation = (liveData, tbodyId) => {
-            const tbody = document.getElementById(tbodyId);
-            tbody.innerHTML = ''; let balance = 0;
-            liveData.forEach(item => {
-                if (!item.Name) return; 
-                const amount = parseFloat(item.Amount) || 0;
-                if ((item.Type || '').toString().toUpperCase() === 'STARTING') { balance += amount; tbody.innerHTML += `<tr style="background: #f9fafb;"><td class="amount-cell" style="font-weight: bold;">${formatMoney(amount)}</td><td style="text-align: right; color: var(--text-muted);">${item.Name} (STARTING)</td></tr>`; }
-                else { balance -= amount; tbody.innerHTML += `<tr><td>${item.Name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`; }
-            });
-            tbody.innerHTML += `<tr class="total-row"><td class="${balance < 0 ? 'amount-red' : (balance === 0 ? 'amount-green' : '')}">${formatMoney(balance)}</td><td style="text-align: right; font-size: 0.8rem; color: ${balance === 0 ? 'var(--success-green)' : 'var(--danger-red)'};">${balance === 0 ? 'RECONCILED' : 'NOT RECONCILED'}</td></tr>`;
-        };
+        const renderReconciliation = (liveData, tbodyId, tabName) => {
+    const tbody = document.getElementById(tbodyId);
+    tbody.innerHTML = ''; 
+    let balance = 0;
+
+    liveData.forEach(item => {
+        if (!item.Name) return; 
+        const amount = parseFloat(item.Amount) || 0;
+        
+        if ((item.Type || '').toString().toUpperCase() === 'STARTING') { 
+            balance += amount; 
+            tbody.innerHTML += `<tr style="background: #f9fafb;"><td class="amount-cell" style="font-weight: bold;">${formatMoney(amount)}</td><td style="text-align: right; color: var(--text-muted);">${item.Name} (STARTING)</td></tr>`; 
+        } else { 
+            balance -= amount; 
+            tbody.innerHTML += `<tr><td>${item.Name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`; 
+        }
+    });
+
+    // Totals Row
+    tbody.innerHTML += `<tr class="total-row"><td class="${balance < 0 ? 'amount-red' : (balance === 0 ? 'amount-green' : '')}">${formatMoney(balance)}</td><td style="text-align: right; font-size: 0.8rem; color: ${balance === 0 ? 'var(--success-green)' : 'var(--danger-red)'};">${balance === 0 ? 'RECONCILED' : 'NOT RECONCILED'}</td></tr>`;
+
+    // Add "Add New" UI
+    tbody.innerHTML += `
+        <tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')"><td colspan="2">+ Add New</td></tr>
+        <tr id="inline-form-${tbodyId}" style="display: none; background-color: #f9fafb;">
+            <td><input type="number" id="input-amount-${tbodyId}" class="inline-input" placeholder="0.00" step="0.01"></td>
+            <td>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <input type="text" id="input-name-${tbodyId}" class="inline-input" placeholder="Name">
+                    <button class="save-btn" onclick="saveReconciliation('${tbodyId}', '${tabName}')">Save</button>
+                </div>
+            </td>
+        </tr>`;
+};
 
         const sheetURLs = [
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=0&single=true&output=csv",
