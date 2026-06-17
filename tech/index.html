@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="https://joshstafki.github.io/fintech/favicon.svg">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root {
@@ -26,7 +27,7 @@
         body { background-color: var(--bg-color); color: var(--text-main); padding: 2rem; }
         .dashboard-header { margin-bottom: 2rem; }
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; align-items: start; }
-        .card { background: var(--card-bg); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); overflow: hidden; border: 1px solid var(--border-color); }
+        .card { background: var(--card-bg); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 1.5rem; }
         .card-header { padding: 1rem 1.25rem; font-weight: 600; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); }
         .header-blue { background-color: var(--header-blue); color: #1d4ed8; }
         .header-red { background-color: var(--header-red); color: #b91c1c; }
@@ -74,25 +75,34 @@
 
     <div class="dashboard-grid">
         
-        <div class="card">
-            <div class="card-header header-blue">Out of Pocket Expenses</div>
-            <div class="card-body">
-                <table>
-                    <thead><tr><th>Amount</th><th>Name</th><th>Status</th></tr></thead>
-                    <tbody id="out-of-pocket-body"></tbody>
-                    <tr class="total-row"><td colspan="3">Total: <span id="out-of-pocket-total">$0.00</span></td></tr>
-                </table>
+        <div>
+            <div class="card">
+                <div class="card-header header-blue">Out of Pocket Expenses</div>
+                <div class="card-body">
+                    <table>
+                        <thead><tr><th>Amount</th><th>Name</th><th>Status</th></tr></thead>
+                        <tbody id="out-of-pocket-body"></tbody>
+                        <tr class="total-row"><td colspan="3">Total: <span id="out-of-pocket-total">$0.00</span></td></tr>
+                    </table>
+                </div>
             </div>
-        </div>
 
-        <div class="card">
-            <div class="card-header header-red">Bank Initiated Expenses</div>
-            <div class="card-body">
-                <table>
-                    <thead><tr><th>Amount</th><th>Name</th><th>Status</th></tr></thead>
-                    <tbody id="bank-initiated-body"></tbody>
-                    <tr class="total-row"><td colspan="3">Total: <span id="bank-initiated-total">$0.00</span></td></tr>
-                </table>
+            <div class="card">
+                <div class="card-header header-blue">Revenue vs. Expenses</div>
+                <div class="card-body" style="padding: 1.5rem;">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header header-red">Bank Initiated Expenses</div>
+                <div class="card-body">
+                    <table>
+                        <thead><tr><th>Amount</th><th>Name</th><th>Status</th></tr></thead>
+                        <tbody id="bank-initiated-body"></tbody>
+                        <tr class="total-row"><td colspan="3">Total: <span id="bank-initiated-total">$0.00</span></td></tr>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -148,6 +158,34 @@
     <script>
         const expenseTotals = { Out_Of_Pocket: 0, Bank_Initiated: 0 };
         const scriptURL = "https://script.google.com/macros/s/AKfycbzv8nN_pnwlCEaS6cPZ4b7qkl8y0Klb-oHO8eY3k-gao9HG_M5yeuWi2is0aJC3cbohnw/exec"; 
+        let revenueChartInstance = null;
+
+        const updateChart = () => {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            const expenses = expenseTotals.Out_Of_Pocket + expenseTotals.Bank_Initiated;
+            const spendable = parseFloat(document.getElementById('spendable-income').value) || 0;
+            const remaining = Math.max(0, spendable - expenses);
+
+            const data = {
+                labels: ['Expenses', 'Remaining'],
+                datasets: [{
+                    data: [expenses, remaining],
+                    backgroundColor: ['#ef4444', '#10b981'],
+                    borderWidth: 0
+                }]
+            };
+
+            if (revenueChartInstance) {
+                revenueChartInstance.data = data;
+                revenueChartInstance.update();
+            } else {
+                revenueChartInstance = new Chart(ctx, {
+                    type: 'pie',
+                    data: data,
+                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                });
+            }
+        };
 
         const calculateRevenue = () => {
             const spendable = parseFloat(document.getElementById('spendable-income').value) || 0;
@@ -156,6 +194,7 @@
             const display = document.getElementById('actual-revenue');
             display.innerText = formatMoney(actualRevenue);
             display.style.color = (actualRevenue < 0) ? 'var(--danger-red)' : 'var(--text-main)';
+            updateChart();
         };
 
         const formatMoney = (amount) => {
