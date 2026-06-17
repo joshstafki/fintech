@@ -400,15 +400,37 @@
             }
 
             saveBtn.innerText = '...';
-            saveBtn.style.background = 'var(--text-muted)';
             saveBtn.disabled = true;
 
+            // Paste the URL you just copied from the Deploy menu here:
             const scriptURL = "https://script.google.com/macros/s/AKfycbzv8nN_pnwlCEaS6cPZ4b7qkl8y0Klb-oHO8eY3k-gao9HG_M5yeuWi2is0aJC3cbohnw/exec"; 
 
             const expenseData = {
                 tabName: tabName,
                 row: [amount, name, "", status] 
             };
+
+            try {
+                // Send to Google Apps Script
+                await fetch(scriptURL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "text/plain" },
+                    body: JSON.stringify(expenseData)
+                });
+                
+                // Success: Refresh the dashboard
+                setTimeout(async () => {
+                    await loadDashboard();
+                }, 1000); // 1-second delay to give Google Sheets time to record the row
+                
+            } catch (error) {
+                console.error("Error saving data:", error);
+                alert("The request failed. Check the console for details.");
+                saveBtn.innerText = 'Save';
+                saveBtn.disabled = false;
+            }
+        };
 
             try {
                 // Bypass the strict browser origin check
