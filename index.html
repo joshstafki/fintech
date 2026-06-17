@@ -175,6 +175,36 @@
         .summary-value {
             font-size: 2rem;
             font-weight: 700;
+            transition: color 0.3s ease;
+        }
+
+        /* Ghost Input for Editable Income */
+        .ghost-input {
+            border: none;
+            background: transparent;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            width: 100%;
+            outline: none;
+            font-family: inherit;
+            border-bottom: 2px dashed transparent;
+            transition: border-bottom 0.2s;
+            padding: 0;
+        }
+
+        .ghost-input:focus, .ghost-input:hover {
+            border-bottom: 2px dashed var(--border-color);
+        }
+
+        /* Hide number arrows for clean UI */
+        .ghost-input::-webkit-outer-spin-button,
+        .ghost-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .ghost-input[type=number] {
+            -moz-appearance: textfield;
         }
 
         @media (max-width: 768px) {
@@ -227,14 +257,17 @@
             <div class="card">
                 <div class="summary-card">
                     <span class="summary-title">Total Spendable Income</span>
-                    <span class="summary-value" id="spendable-income">$1,315.00</span>
+                    <div style="display: flex; align-items: baseline; font-size: 2rem; font-weight: 700;">
+                        <span style="color: var(--text-muted); margin-right: 4px;">$</span>
+                        <input type="number" id="spendable-income" class="ghost-input" value="1315.00" step="0.01" oninput="calculateRevenue()">
+                    </div>
                 </div>
             </div>
 
             <div class="card">
                 <div class="summary-card">
                     <span class="summary-title">Actual Total Revenue</span>
-                    <span class="summary-value" id="actual-revenue">$67.00</span>
+                    <span class="summary-value" id="actual-revenue">$0.00</span>
                 </div>
             </div>
 
@@ -279,13 +312,58 @@
 
     <script>
         // ---------------------------------------------------------
-        // 1. FORMATTING HELPERS
+        // 1. GLOBAL STATE & CALCULATIONS
+        // ---------------------------------------------------------
+        
+        // Track the totals globally so we can do math on them
+        const expenseTotals = {
+            Out_Of_Pocket: 0,
+            Bank_Initiated: 0
+        };
+
+        const calculateRevenue = () => {
+            const spendableInput = document.getElementById('spendable-income');
+            const revenueDisplay = document.getElementById('actual-revenue');
+            
+            // Get the current typed income
+            const spendable = parseFloat(spendableInput.value) || 0;
+            
+            // Save it to device memory so it survives page refreshes
+            localStorage.setItem('savedSpendableIncome', spendable);
+
+            // Math: Income minus the sum of both expense tables
+            const totalExpenses = expenseTotals.Out_Of_Pocket + expenseTotals.Bank_Initiated;
+            const actualRevenue = spendable - totalExpenses;
+
+            // Update the screen
+            revenueDisplay.innerText = formatMoney(actualRevenue);
+            
+            // Visual warning if revenue drops below zero
+            if (actualRevenue < 0) {
+                revenueDisplay.style.color = 'var(--danger-red)';
+            } else {
+                revenueDisplay.style.color = 'var(--text-main)';
+            }
+        };
+
+        // Load the saved income from memory when the app starts
+        const loadSavedIncome = () => {
+            const savedIncome = localStorage.getItem('savedSpendableIncome');
+            if (savedIncome !== null) {
+                document.getElementById('spendable-income').value = savedIncome;
+            }
+        };
+
+        // ---------------------------------------------------------
+        // 2. FORMATTING HELPERS
         // ---------------------------------------------------------
         
         const formatMoney = (amount) => {
             const num = parseFloat(amount);
             if (isNaN(num)) return '$0.00';
-            return '$' + num.toFixed(2);
+            
+            // Formats with negative sign before the dollar sign if needed (e.g., -$5.00)
+            return (num < 0 ? '-' : '') + '$' + Math.abs(num).toFixed(2);
         };
 
         const getBadgeClass = (status) => {
@@ -297,17 +375,15 @@
         };
 
         // ---------------------------------------------------------
-        // 2. INTERACTIVE UI FUNCTIONS
+        // 3. INTERACTIVE UI FUNCTIONS
         // ---------------------------------------------------------
 
-        // Transforms the "Add Row" button into input fields
         const openInlineForm = (tbodyId) => {
             document.getElementById(`add-btn-${tbodyId}`).style.display = 'none';
             document.getElementById(`inline-form-${tbodyId}`).style.display = 'table-row';
             document.getElementById(`input-amount-${tbodyId}`).focus();
         };
 
-        // Gathers data from the inputs and sends it to Google Sheets
         const saveInlineExpense = async (tbodyId, tabName) => {
             const amountInput = document.getElementById(`input-amount-${tbodyId}`);
             const nameInput = document.getElementById(`input-name-${tbodyId}`);
@@ -318,22 +394,17 @@
             const name = nameInput.value.trim();
             const status = statusInput.value;
 
-            // Basic validation
             if (!amount || !name) {
                 alert("Please enter both an amount and a name.");
                 return;
             }
 
-            // Visual loading state
             saveBtn.innerText = '...';
             saveBtn.style.background = 'var(--text-muted)';
             saveBtn.disabled = true;
 
-            // YOUR Web App URL
             const scriptURL = "https://script.google.com/macros/s/AKfycbzv8nN_pnwlCEaS6cPZ4b7qkl8y0Klb-oHO8eY3k-gao9HG_M5yeuWi2is0aJC3cbohnw/exec"; 
 
-            // The data structure matching your Apps Script
-            // Note: The empty string "" acts as a placeholder for the Due_Date column
             const expenseData = {
                 tabName: tabName,
                 row: [amount, name, "", status] 
@@ -348,7 +419,6 @@
                 const result = await response.json();
                 
                 if (result.result === "success") {
-                    // Instantly refresh the screen with the new data!
                     await loadDashboard();
                 } else {
                     throw new Error("Backend failed to update sheet.");
@@ -364,10 +434,9 @@
         };
 
         // ---------------------------------------------------------
-        // 3. RENDER FUNCTIONS
+        // 4. RENDER FUNCTIONS
         // ---------------------------------------------------------
         
-        // Renders primary tables and appends the interactive inline form
         const renderExpenseTable = (liveData, tbodyId, totalId, tabName) => {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = ''; 
@@ -387,7 +456,11 @@
                 `;
             });
 
-            // Inject the interactive "Add New Row" feature at the bottom of the data
+            // Update the global state so calculateRevenue() can access it
+            if (tabName === 'Out_Of_Pocket' || tabName === 'Bank_Initiated') {
+                expenseTotals[tabName] = total;
+            }
+
             tbody.innerHTML += `
                 <tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')">
                     <td colspan="3">+ Add New Expense</td>
@@ -444,7 +517,7 @@
                         </tr>
                     `;
                 } else {
-                    balance -= amount; // Subtract expenses
+                    balance -= amount; 
                     tbody.innerHTML += `
                         <tr>
                             <td>${item.Name}</td>
@@ -468,7 +541,7 @@
         };
 
         // ---------------------------------------------------------
-        // 4. FETCH AND INITIALIZE DATABASE
+        // 5. FETCH AND INITIALIZE DATABASE
         // ---------------------------------------------------------
         
         const sheetURLs = [
@@ -493,14 +566,18 @@
 
         const loadDashboard = async () => {
             try {
+                loadSavedIncome(); // Pull the saved income before calculating
+
                 const datasets = await Promise.all(sheetURLs.map(url => fetchSheet(url)));
                 
-                // Pass the Tab Names to the rendering engine so the Save buttons know where to send data
                 renderExpenseTable(datasets[0], 'out-of-pocket-body', 'out-of-pocket-total', 'Out_Of_Pocket');
                 renderExpenseTable(datasets[1], 'bank-initiated-body', 'bank-initiated-total', 'Bank_Initiated');
                 renderFillUps(datasets[2]);
                 renderReconciliation(datasets[3], 'bank-recon-body');
                 renderReconciliation(datasets[4], 'grocery-budget-body');
+                
+                // Now that the tables are rendered and totals are calculated, do the math!
+                calculateRevenue();
                 
             } catch (error) {
                 console.error("Error fetching database tabs:", error);
