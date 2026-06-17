@@ -1,961 +1,403 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LEDGER</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #09090B;
-      --surface: rgba(14, 14, 17, 0.92);
-      --surface-2: rgba(20, 20, 24, 0.96);
-      --border: rgba(255, 255, 255, 0.06);
-      --border-hi: rgba(255, 255, 255, 0.12);
-      --border-cyan: rgba(0, 229, 255, 0.3);
-      --t1: #F0F0F2;
-      --t2: #A0A0A8;
-      --t3: #505058;
-      --cyan: #00E5FF;
-      --cyan-bg: rgba(0, 229, 255, 0.10);
-      --cyan-bg2: rgba(0, 229, 255, 0.05);
-      --emerald: #10B981;
-      --rose: #F43F5E;
-      --amber: #F59E0B;
-      --violet: #8B5CF6;
-      --r: 16px;
-      --r-sm: 10px;
-      --r-xs: 7px;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            /* Color Palette */
+            --bg-color: #f4f7f9;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #6b7280;
+            --primary-blue: #3b82f6;
+            --success-green: #10b981;
+            --danger-red: #ef4444;
+            --border-color: #e5e7eb;
+            --header-blue: #eff6ff;
+            --header-red: #fef2f2;
+            --header-green: #ecfdf5;
+            --header-purple: #faf5ff;
+        }
 
-    body {
-      background: var(--bg);
-      background-image:
-        radial-gradient(ellipse 70% 40% at 50% -10%, rgba(0,229,255,0.07) 0%, transparent 55%),
-        radial-gradient(ellipse 35% 25% at 85% 85%, rgba(139,92,246,0.05) 0%, transparent 50%);
-      color: var(--t1);
-      font-family: 'Inter', system-ui, sans-serif;
-      font-size: 14px;
-      min-height: 100dvh;
-      margin: 0;
-      overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
-    }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
 
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 2rem;
+        }
 
-    .t-num { font-family: 'Oswald', sans-serif; }
-    .t-label {
-      font-size: 10px; font-weight: 500; letter-spacing: 0.10em;
-      text-transform: uppercase; color: var(--t3); display: block; margin-bottom: 8px;
-    }
+        .dashboard-header {
+            margin-bottom: 2rem;
+        }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      backdrop-filter: blur(20px);
-    }
-    .card-hover { transition: border-color 0.2s, box-shadow 0.2s; }
-    .card-hover:hover { border-color: var(--border-hi); box-shadow: 0 8px 40px rgba(0,0,0,0.4); }
+        .dashboard-header h1 {
+            font-size: 1.8rem;
+            color: var(--text-main);
+        }
 
-    .field {
-      width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08); border-radius: var(--r-sm);
-      padding: 10px 13px; color: var(--t1); font-family: inherit; font-size: 14px; outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-    }
-    .field:focus {
-      border-color: var(--border-cyan); background: rgba(0,229,255,0.03);
-      box-shadow: 0 0 0 3px rgba(0,229,255,0.07);
-    }
-    input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.4); cursor: pointer; }
-    input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--cyan); }
-    select option { background: #0f0f13; }
+        /* Grid Layout for the Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            align-items: start;
+        }
 
-    button { font-family: inherit; }
-    .btn-primary {
-      background: var(--t1); color: var(--bg); border: none;
-      border-radius: var(--r-sm); padding: 10px 20px; font-weight: 600; font-size: 14px; cursor: pointer;
-      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-    }
-    .btn-primary:hover { background: #e4e4e7; box-shadow: 0 0 20px rgba(255,255,255,0.1); }
-    .btn-primary:active { transform: scale(0.97); }
+        /* Card Styling */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
 
-    .btn-accent {
-      background: var(--cyan-bg); color: var(--cyan);
-      border: 1px solid rgba(0,229,255,0.2); border-radius: var(--r-sm);
-      padding: 9px 16px; font-size: 13px; font-weight: 500; cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn-accent:hover { background: rgba(0,229,255,0.18); border-color: rgba(0,229,255,0.4); box-shadow: 0 0 16px rgba(0,229,255,0.15); }
+        .card-header {
+            padding: 1rem 1.25rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
 
-    .btn-ghost {
-      background: rgba(255,255,255,0.04); color: var(--t2);
-      border: 1px solid var(--border); border-radius: var(--r-sm);
-      padding: 8px 14px; font-size: 12px; font-weight: 500; cursor: pointer;
-      transition: all 0.15s;
-    }
-    .btn-ghost:hover { background: rgba(255,255,255,0.07); color: var(--t1); }
+        .header-blue { background-color: var(--header-blue); color: #1d4ed8; }
+        .header-red { background-color: var(--header-red); color: #b91c1c; }
+        .header-green { background-color: var(--header-green); color: #047857; }
+        .header-purple { background-color: var(--header-purple); color: #6d28d9; }
 
-    .badge-base {
-      display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px;
-      font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-    }
-    .badge-cyan { background: var(--cyan-bg); color: var(--cyan); border: 1px solid rgba(0,229,255,0.2); }
-    .badge-green { background: rgba(16,185,129,0.1); color: var(--emerald); border: 1px solid rgba(16,185,129,0.2); }
-    .badge-rose { background: rgba(244,63,94,0.1); color: var(--rose); border: 1px solid rgba(244,63,94,0.2); }
-    .badge-violet { background: rgba(139,92,246,0.1); color: #A78BFA; border: 1px solid rgba(139,92,246,0.2); }
-    .badge-amber { background: rgba(245,158,11,0.1); color: var(--amber); border: 1px solid rgba(245,158,11,0.2); }
+        .card-body {
+            padding: 0;
+        }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(12px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .fade-up { animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
 
-    /* LAYOUTS */
-    #onboarding {
-      position: fixed; inset: 0; z-index: 200;
-      display: flex; align-items: center; justify-content: center; padding: 20px;
-      background: var(--bg);
-    }
-    .ob-card { width: 100%; max-width: 440px; padding: 40px; box-sizing: border-box; position: relative; }
+        th, td {
+            padding: 0.75rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+        }
 
-    #modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.72);
-      backdrop-filter: blur(10px); z-index: 100;
-      display: none; align-items: center; justify-content: center; padding: 20px;
-    }
-    #tx-modal {
-      width: 100%; max-width: 460px; padding: 28px; box-sizing: border-box;
-      max-height: 90dvh; overflow-y: auto;
-    }
-    #tx-modal.open { animation: fadeUp 0.25s cubic-bezier(0.16,1,0.3,1); }
+        th {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            background-color: #f9fafb;
+            font-weight: 500;
+        }
 
-    #dashboard {
-      padding: 24px; max-width: 1440px; margin: 0 auto;
-      display: none; flex-direction: column; gap: 20px; min-height: 100dvh; box-sizing: border-box;
-    }
+        tr:last-child td {
+            border-bottom: none;
+        }
 
-    .site-header {
-      padding: 14px 22px; display: flex; align-items: center;
-      justify-content: space-between; gap: 16px; flex-wrap: wrap;
-      position: sticky; top: 24px; z-index: 50;
-    }
-    .hdr-left, .hdr-right { display: flex; align-items: center; gap: 12px; }
-    
-    #accounts-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px;
-    }
-    .acc-item { padding: 16px; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
-    
-    #main-grid {
-      display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start;
-    }
-    .col-left, .col-right { display: flex; flex-direction: column; gap: 20px; }
+        /* Status Badges */
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
 
-    .panel { padding: 24px; box-sizing: border-box; }
-    .panel-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    
-    .cat-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 13px; }
-    .cat-bar-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; }
-    .cat-bar-fill { height: 100%; border-radius: 2px; width: 0; transition: width 0.9s cubic-bezier(0.4,0,0.2,1); }
-    
-    .ledger-wrap { overflow-x: auto; margin: 0 -24px; padding: 0 24px; }
-    .ledger-table { width: 100%; min-width: 520px; border-collapse: collapse; }
-    .ledger-table th { text-align: left; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-    .ledger-table td { padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-    .ledger-table tr:hover td { background: rgba(255,255,255,0.02); }
-    .del-btn { opacity: 0; background: none; border: none; color: var(--t3); cursor: pointer; padding: 4px; transition: 0.15s; }
-    .ledger-table tr:hover .del-btn { opacity: 1; }
-    .del-btn:hover { color: var(--rose); }
+        .badge-paid, .badge-available { background-color: #d1fae5; color: #065f46; }
+        .badge-used, .badge-unreconciled { background-color: #fee2e2; color: #991b1b; }
 
-    #timeline { position: relative; padding-left: 16px; border-left: 1px solid var(--border); max-height: 320px; overflow-y: auto; }
-    
-    @media (max-width: 960px) {
-      #main-grid { grid-template-columns: 1fr; }
-      .col-right { order: -1; }
-    }
-    
-    /* UTILS */
-    .flex { display: flex; }
-    .items-center { align-items: center; }
-    .justify-between { justify-content: space-between; }
-    .gap-2 { gap: 8px; }
-    .gap-3 { gap: 12px; }
-    .gap-4 { gap: 16px; }
-    .w-full { width: 100%; }
-    .mt-4 { margin-top: 16px; }
-    .mt-6 { margin-top: 24px; }
-    .text-rose { color: var(--rose) !important; }
-    .text-emerald { color: var(--emerald) !important; }
-    .text-amber { color: var(--amber) !important; }
-    .text-t1 { color: var(--t1); }
-    .text-t2 { color: var(--t2); }
-    .text-t3 { color: var(--t3); }
-    .bold { font-weight: 600; }
-  </style>
+        /* Totals Row */
+        .total-row {
+            background-color: #f9fafb;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .amount-cell {
+            font-family: "Courier New", Courier, monospace;
+            font-weight: 600;
+        }
+
+        .amount-red { color: var(--danger-red); }
+        .amount-green { color: var(--success-green); }
+
+        /* Summary Stats Cards */
+        .summary-card {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .summary-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .summary-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
 
-  <div id="onboarding">
-    <div class="card ob-card fade-up">
-      <div class="flex items-center gap-3" style="margin-bottom: 24px;">
-        <div style="width:34px; height:34px; background:var(--cyan-bg); border:1px solid rgba(0,229,255,0.25); border-radius:9px; display:flex; align-items:center; justify-content:center;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-        </div>
-        <span class="t-num" style="font-size:18px; font-weight:600; letter-spacing:0.06em;">LEDGER</span>
-      </div>
-
-      <div class="flex gap-2" style="margin-bottom: 32px;" id="ob-track">
-        <div id="pip-1" style="height:3px; border-radius:2px; background:var(--cyan); width:28px;"></div>
-        <div id="pip-2" style="height:3px; border-radius:2px; background:rgba(255,255,255,0.08); width:16px;"></div>
-      </div>
-
-      <div id="step-1">
-        <div style="margin-bottom: 20px;">
-          <span class="t-label">Your Name</span>
-          <input class="field" type="text" id="input-name" placeholder="E.g. Alex" autocomplete="off">
-        </div>
-        <div style="margin-bottom: 32px;">
-          <span class="t-label">Sprint Start Date</span>
-          <input class="field" type="date" id="input-sprint-date">
-        </div>
-        <button class="btn-primary w-full" onclick="goToStep2()">Continue to Accounts</button>
-      </div>
-
-      <div id="step-2" style="display: none;">
-        <span class="t-label" style="margin-bottom: 12px;">Starting Balances</span>
-        <div id="account-list" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px; max-height: 240px; overflow-y:auto; padding-right:4px;"></div>
-        <button class="btn-ghost w-full" style="border-style: dashed; margin-bottom:32px;" onclick="addAccountRow()">+ Add Account</button>
-        <div class="flex gap-3">
-          <button class="btn-ghost" onclick="goBack()">Back</button>
-          <button class="btn-accent" style="flex:1;" onclick="compileDashboard()">Launch Dashboard</button>
-        </div>
-      </div>
-
-      <div id="step-loading" style="display: none; text-align: center; padding: 40px 0;">
-        <div style="width:40px; height:40px; border:3px solid rgba(255,255,255,0.05); border-top-color:var(--cyan); border-radius:50%; margin:0 auto 24px; animation:spin 1s linear infinite;"></div>
-        <div class="text-t1 bold">Initializing Environment</div>
-        <div class="text-t3" style="font-size:12px; margin-top:6px;">Syncing initial ledgers...</div>
-      </div>
-    </div>
-  </div>
-
-  <div id="modal-overlay">
-    <div id="tx-modal" class="card">
-      <div class="flex justify-between items-center" style="margin-bottom: 24px;">
-        <h2 style="margin:0; font-size:18px; font-weight:600;">New Transaction</h2>
-        <button class="btn-ghost" style="padding: 6px; border:none; width:30px; height:30px; display:flex; align-items:center; justify-content:center;" onclick="closeModal()">×</button>
-      </div>
-      
-      <form id="tx-form" onsubmit="addTransaction(event)">
-        <div style="margin-bottom: 16px;">
-          <span class="t-label">Description</span>
-          <input class="field" type="text" id="tx-name" required placeholder="E.g. Groceries">
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-          <div>
-            <span class="t-label">Flow Type</span>
-            <select class="field" id="tx-type" onchange="handleTypeChange()">
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
-          </div>
-          <div>
-            <span class="t-label">Category</span>
-            <select class="field" id="tx-category"></select>
-          </div>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-          <div>
-            <span class="t-label">Amount</span>
-            <input class="field t-num" type="number" id="tx-amount" step="0.01" required placeholder="0.00" oninput="updateSplitMath()">
-          </div>
-          <div>
-            <span class="t-label">Account</span>
-            <select class="field" id="tx-account"></select>
-          </div>
-        </div>
-
-        <div id="split-section" style="display:none; margin-bottom:16px; background:rgba(0,229,255,0.04); border:1px solid rgba(0,229,255,0.14); border-radius:12px; padding:14px;">
-          <label class="flex items-center gap-2" style="cursor:pointer; font-size:13px; color:var(--t2);">
-            <input type="checkbox" id="tx-use-split" onchange="toggleSplit()">
-            Split income across multiple accounts
-          </label>
-          <div id="split-details" style="display:none; flex-direction:column; gap:12px; margin-top:14px;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              <div>
-                <span class="t-label">Amount to Primary</span>
-                <input class="field t-num" type="number" id="tx-split-amount" step="0.01" placeholder="0.00" oninput="updateSplitMath()">
-              </div>
-              <div>
-                <span class="t-label">Secondary Account</span>
-                <select class="field" id="tx-split-account"></select>
-              </div>
-            </div>
-            <div style="font-size:12px; color:var(--t2); text-align:right;">
-              Remainder to secondary: <span id="split-remainder" class="t-num text-emerald">$0.00</span>
-            </div>
-          </div>
-        </div>
-
-        <div style="background:rgba(255,255,255,0.02); border-radius:10px; padding:14px; margin-bottom:24px;">
-          <div style="margin-bottom: 12px;">
-            <span class="t-label">Date</span>
-            <input class="field" type="date" id="tx-date" required>
-          </div>
-          <label class="flex items-center gap-2" style="cursor:pointer; font-size:13px; color:var(--t2);">
-            <input type="checkbox" id="tx-out-of-cycle">
-            <div style="display:flex; flex-direction:column;">
-              <span class="text-t1">Future / Global Reconciliation</span>
-              <span style="font-size:11px; color:var(--t3);">Exclude from sprint KPI, but affect account balance.</span>
-            </div>
-          </label>
-        </div>
-
-        <button type="submit" class="btn-accent w-full">Add to Ledger</button>
-      </form>
-    </div>
-  </div>
-
-  <div id="dashboard">
-    <div class="card site-header">
-      <div class="hdr-left">
-        <div style="width:34px; height:34px; background:var(--cyan-bg); border:1px solid rgba(0,229,255,0.25); border-radius:9px; display:flex; align-items:center; justify-content:center;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="t-num" style="font-size:16px; font-weight:600; letter-spacing:0.06em;">LEDGER</span>
-            <span class="badge-base badge-cyan">14-Day Sprint</span>
-          </div>
-          <div id="hdr-sprint-dates" style="font-size:11px; color:var(--t3); margin-top:2px;"></div>
-        </div>
-      </div>
-      <div class="hdr-right">
-        <div class="flex items-center gap-2" style="margin-right:8px;">
-          <div id="hdr-avatar" class="t-num" style="width:20px; height:20px; background:var(--cyan-bg); color:var(--cyan); border:1px solid rgba(0,229,255,0.3); border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:11px;"></div>
-          <span id="hdr-name" style="font-size:13px; font-weight:500; color:var(--t2);"></span>
-        </div>
-        <button id="ui-auth-btn" class="btn-ghost">Sign In</button>
-        <button id="ui-save-btn" class="btn-ghost" style="color:#A78BFA; border-color:rgba(139,92,246,0.3); background:rgba(139,92,246,0.05);" onclick="window.saveToCloud()">Sync Cloud</button>
-        <button class="btn-primary" onclick="openModal()">New Transaction</button>
-      </div>
+    <div class="dashboard-header">
+        <h1>Financial Dashboard</h1>
+        <p style="color: var(--text-muted); margin-top: 0.25rem;">Live Data Connected</p>
     </div>
 
-    <div id="accounts-grid"></div>
-
-    <div id="main-grid">
-      <div class="col-left">
-        <div class="card panel">
-          <div class="panel-hdr">
-            <span class="t-label" style="margin:0;">Category Allocation</span>
-            <span id="cat-total" class="t-num text-t2" style="font-size:15px;"></span>
-          </div>
-          <div id="category-bars"></div>
+    <div class="dashboard-grid">
+        
+        <div class="card">
+            <div class="card-header header-blue">Out of Pocket Expenses</div>
+            <div class="card-body">
+                <table>
+                    <thead><tr><th>Amount</th><th>Name</th><th>Status</th></tr></thead>
+                    <tbody id="out-of-pocket-body">
+                        <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Loading Data...</td></tr>
+                    </tbody>
+                    <tr class="total-row">
+                        <td colspan="3">Total: <span id="out-of-pocket-total">$0.00</span></td>
+                    </tr>
+                </table>
+            </div>
         </div>
 
-        <div class="card panel">
-          <div class="panel-hdr">
-            <span class="t-label" style="margin:0;">Transaction Ledger</span>
-            <div class="flex items-center gap-2">
-              <span class="t-label" style="margin:0;">Net Flow</span>
-              <span id="net-flow" class="t-num" style="font-size:15px;"></span>
+        <div class="card">
+            <div class="card-header header-red">Bank Initiated Expenses</div>
+            <div class="card-body">
+                <table>
+                    <thead><tr><th>Amount</th><th>Name</th><th>Status</th></tr></thead>
+                    <tbody id="bank-initiated-body">
+                        <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Loading Data...</td></tr>
+                    </tbody>
+                    <tr class="total-row">
+                        <td colspan="3">Total: <span id="bank-initiated-total">$0.00</span></td>
+                    </tr>
+                </table>
             </div>
-          </div>
-          <div class="ledger-wrap">
-            <table class="ledger-table">
-              <thead>
-                <tr>
-                  <th><span class="t-label">Date</span></th>
-                  <th><span class="t-label">Description</span></th>
-                  <th><span class="t-label">Account</span></th>
-                  <th style="text-align:right;"><span class="t-label">Amount</span></th>
-                  <th style="width:30px;"></th>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            
+            <div class="card">
+                <div class="summary-card">
+                    <span class="summary-title">Total Spendable Income</span>
+                    <span class="summary-value" id="spendable-income">$1,315.00</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="summary-card">
+                    <span class="summary-title">Actual Total Revenue</span>
+                    <span class="summary-value" id="actual-revenue">$67.00</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header header-green">Fill Ups</div>
+                <div class="card-body">
+                    <table>
+                        <tbody id="fill-ups-body">
+                           <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Loading Data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+            
+            <div class="card">
+                <div class="card-header header-blue">Bank Reconciliation</div>
+                <div class="card-body">
+                    <table>
+                        <tbody id="bank-recon-body">
+                            <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Loading Data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header header-purple">Grocery Budget</div>
+                <div class="card-body">
+                    <table>
+                        <tbody id="grocery-budget-body">
+                            <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Loading Data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ---------------------------------------------------------
+        // 1. FORMATTING HELPERS
+        // ---------------------------------------------------------
+        
+        const formatMoney = (amount) => {
+            const num = parseFloat(amount);
+            if (isNaN(num)) return '$0.00';
+            return '$' + num.toFixed(2);
+        };
+
+        const getBadgeClass = (status) => {
+            if (!status) return '';
+            const s = status.toString().toUpperCase();
+            if(s === 'PAID' || s === 'AVAILABLE') return `badge-${s.toLowerCase()}`;
+            if(s === 'USED') return 'badge-used';
+            return '';
+        };
+
+        // ---------------------------------------------------------
+        // 2. RENDER FUNCTIONS
+        // ---------------------------------------------------------
+        
+        const renderExpenseTable = (liveData, tbodyId, totalId) => {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = ''; 
+            let total = 0;
+            
+            liveData.forEach(item => {
+                if (!item.Name) return; 
+                const amount = item.Amount || 0;
+                total += amount;
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="amount-cell amount-red">${formatMoney(amount)}</td>
+                        <td>${item.Name || ''}</td>
+                        <td><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span></td>
+                    </tr>
+                `;
+            });
+            document.getElementById(totalId).innerText = formatMoney(total);
+        };
+
+        const renderFillUps = (liveData) => {
+            const tbody = document.getElementById('fill-ups-body');
+            tbody.innerHTML = '';
+            
+            liveData.forEach(item => {
+                if (!item.Name) return;
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${item.Name}</td>
+                        <td style="text-align: right;"><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span></td>
+                    </tr>
+                `;
+            });
+        };
+
+        const renderReconciliation = (liveData, tbodyId) => {
+            const tbody = document.getElementById(tbodyId);
+            tbody.innerHTML = '';
+            let balance = 0;
+            
+            liveData.forEach(item => {
+                if (!item.Name) return; 
+                const amount = parseFloat(item.Amount) || 0;
+                const type = (item.Type || '').toString().toUpperCase();
+                
+                if (type === 'STARTING') {
+                    balance += amount;
+                    tbody.innerHTML += `
+                        <tr style="background: #f9fafb;">
+                            <td class="amount-cell" style="font-weight: bold;">${formatMoney(amount)}</td>
+                            <td style="text-align: right; color: var(--text-muted);">${item.Name} (STARTING)</td>
+                        </tr>
+                    `;
+                } else {
+                    balance -= amount; // Subtract expenses
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${item.Name}</td>
+                            <td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td>
+                        </tr>
+                    `;
+                }
+            });
+            
+            const isReconciled = balance === 0;
+            const statusText = isReconciled ? 'RECONCILED' : 'NOT RECONCILED';
+            const statusColor = isReconciled ? 'var(--success-green)' : 'var(--danger-red)';
+            const balanceColorClass = balance < 0 ? 'amount-red' : (balance === 0 ? 'amount-green' : '');
+
+            tbody.innerHTML += `
+                <tr class="total-row">
+                    <td class="${balanceColorClass}">${formatMoney(balance)}</td>
+                    <td style="text-align: right; font-size: 0.8rem; color: ${statusColor};">${statusText}</td>
                 </tr>
-              </thead>
-              <tbody id="ledger-body"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+            `;
+        };
 
-      <div class="col-right">
-        <div id="kpi-card" class="card panel" style="text-align:center; border-top: 2px solid var(--cyan);">
-          <div style="width:36px; height:36px; background:var(--cyan-bg); border:1px solid rgba(0,229,255,0.2); border-radius:10px; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-          </div>
-          <span class="t-label">Sprint Net Flow</span>
-          <div id="spendable-kpi" class="t-num text-t1" style="font-size:46px; font-weight:600; line-height:1.2; margin-bottom:8px;">$0.00</div>
-          <div style="font-size:12px; color:var(--t3);">Income minus expenses this cycle</div>
-        </div>
-
-        <div class="card panel">
-          <span class="t-label">Sprint Timeline</span>
-          <div id="timeline" class="mt-4"></div>
-        </div>
-
-        <div class="card panel" style="border-top: 2px solid var(--violet);">
-          <div class="panel-hdr" style="margin-bottom:12px;">
-            <div class="flex items-center gap-2">
-              <div style="width:28px; height:28px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2); border-radius:8px; display:flex; align-items:center; justify-content:center;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-              </div>
-              <span class="t-num" style="font-size:14px; color:var(--t1);">AI Insights</span>
-            </div>
-            <span class="badge-base badge-violet">Live</span>
-          </div>
-          <div id="ai-insights" class="text-t2" style="font-size:13px; line-height:1.72;"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // GLOBAL STATE & UTILS
-    var appState = {
-      name: 'User',
-      sprintStartDate: null,
-      accounts: [],
-      transactions: []
-    };
-
-    const fmt = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fmtDt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const $ = id => document.getElementById(id);
-
-    var catConfig = {
-      housing:    { label: 'Housing',         color: '#8B5CF6' },
-      food:       { label: 'Food & Dining',   color: '#10B981' },
-      transport:  { label: 'Transportation',  color: '#F59E0B' },
-      debt:       { label: 'Debt / Credit',   color: '#F43F5E' },
-      savings:    { label: 'Savings',         color: '#00E5FF' },
-      operations: { label: 'Tech & Services', color: '#6366F1' },
-      other:      { label: 'Other',           color: '#71717A' }
-    };
-
-    // ONBOARDING
-    window.addEventListener('DOMContentLoaded', () => {
-      $('input-sprint-date').value = new Date().toISOString().split('T')[0];
-      addAccountRow();
-      
-      const catSelect = $('tx-category');
-      Object.entries(catConfig).forEach(([k, v]) => {
-        catSelect.innerHTML += `<option value="${k}">${v.label}</option>`;
-      });
-    });
-
-    let accCount = 0;
-    function addAccountRow() {
-      accCount++;
-      const id = 'acc_tmp_' + accCount;
-      const row = document.createElement('div');
-      row.className = 'acc-row';
-      row.style.cssText = 'background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:11px; padding:14px; display:flex; flex-direction:column; gap:9px;';
-      row.innerHTML = `
-        <div class="flex justify-between items-center">
-          <span class="t-label" style="color:var(--cyan); margin:0;">Account ${accCount}</span>
-          ${accCount > 1 ? `<button class="btn-ghost" style="padding:2px 6px; border:none;" onclick="this.parentElement.parentElement.remove()">×</button>` : ''}
-        </div>
-        <input class="field acc-name" type="text" placeholder="Account name">
-        <input class="field acc-balance" type="number" placeholder="Current balance ($)" step="0.01">
-      `;
-      $('account-list').appendChild(row);
-    }
-
-    function goToStep2() {
-      if (!$('input-name').value.trim()) return alert("Please enter your name.");
-      $('step-1').style.display = 'none';
-      $('step-2').style.display = 'block';
-      $('pip-1').style.background = 'rgba(0,229,255,0.35)';
-      $('pip-1').style.width = '16px';
-      $('pip-2').style.background = 'var(--cyan)';
-      $('pip-2').style.width = '28px';
-    }
-
-    function goBack() {
-      $('step-2').style.display = 'none';
-      $('step-1').style.display = 'block';
-      $('pip-1').style.background = 'var(--cyan)';
-      $('pip-1').style.width = '28px';
-      $('pip-2').style.background = 'rgba(255,255,255,0.08)';
-      $('pip-2').style.width = '16px';
-    }
-
-    function compileDashboard() {
-      appState.name = $('input-name').value.trim();
-      appState.sprintStartDate = new Date($('input-sprint-date').value + 'T12:00:00');
-      
-      const rows = document.querySelectorAll('.acc-row');
-      appState.accounts = [];
-      rows.forEach((r, i) => {
-        const name = r.querySelector('.acc-name').value.trim();
-        const bal = parseFloat(r.querySelector('.acc-balance').value) || 0;
-        if (name) {
-          appState.accounts.push({ id: 'acc_' + Date.now() + i, name, initialBalance: bal, currentBalance: bal });
-        }
-      });
-
-      if (appState.accounts.length === 0) {
-        appState.accounts.push({ id: 'acc_0', name: 'Primary Wallet', initialBalance: 0, currentBalance: 0 });
-      }
-
-      populateAccountSelects();
-      
-      $('step-2').style.display = 'none';
-      $('ob-track').style.display = 'none';
-      $('step-loading').style.display = 'block';
-      
-      setTimeout(() => {
-        $('onboarding').style.display = 'none';
-        $('dashboard').style.display = 'flex';
-        renderDashboard();
-      }, 900);
-    }
-
-    function populateAccountSelects() {
-      const opts = appState.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-      $('tx-account').innerHTML = opts;
-      $('tx-split-account').innerHTML = opts;
-    }
-
-    // TRANSACTIONS
-    function openModal() {
-      $('tx-date').valueAsDate = new Date();
-      $('modal-overlay').style.display = 'flex';
-      $('tx-modal').classList.add('open');
-      handleTypeChange();
-    }
-
-    function closeModal() {
-      $('modal-overlay').style.display = 'none';
-      $('tx-modal').classList.remove('open');
-      $('tx-form').reset();
-      handleTypeChange();
-    }
-
-    function handleTypeChange() {
-      const isInc = $('tx-type').value === 'income';
-      $('split-section').style.display = isInc ? 'block' : 'none';
-      if (!isInc) {
-        $('tx-use-split').checked = false;
-        $('split-details').style.display = 'none';
-      }
-    }
-
-    function toggleSplit() {
-      $('split-details').style.display = $('tx-use-split').checked ? 'flex' : 'none';
-      updateSplitMath();
-    }
-
-    function updateSplitMath() {
-      if (!$('tx-use-split').checked) return;
-      const total = parseFloat($('tx-amount').value) || 0;
-      const p1 = parseFloat($('tx-split-amount').value) || 0;
-      const rem = Math.max(total - p1, 0);
-      $('split-remainder').textContent = '$' + fmt(rem);
-    }
-
-    function addTransaction(e) {
-      e.preventDefault();
-      const type = $('tx-type').value;
-      const total = parseFloat($('tx-amount').value);
-      const isSplit = $('tx-use-split').checked && type === 'income';
-      
-      const tx = {
-        id: 'tx_' + Date.now(),
-        name: $('tx-name').value,
-        type,
-        category: $('tx-category').value,
-        amount: total,
-        accountId: $('tx-account').value,
-        dateObj: new Date($('tx-date').value + 'T12:00:00'),
-        isOutOfCycle: $('tx-out-of-cycle').checked,
-        isSplit
-      };
-
-      if (isSplit) {
-        const p1 = parseFloat($('tx-split-amount').value) || 0;
-        tx.splitDetails = [
-          { accountId: $('tx-account').value, amount: p1 },
-          { accountId: $('tx-split-account').value, amount: Math.max(total - p1, 0) }
+        // ---------------------------------------------------------
+        // 3. FETCH AND INITIALIZE DATABASE
+        // ---------------------------------------------------------
+        
+        // The five live Google Sheets tab URLs
+        const sheetURLs = [
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=0&single=true&output=csv",
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=1661018450&single=true&output=csv",
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=395783185&single=true&output=csv",
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=654085998&single=true&output=csv",
+            "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=1532222316&single=true&output=csv"
         ];
-      }
 
-      appState.transactions.push(tx);
-      appState.transactions.sort((a,b) => a.dateObj - b.dateObj);
-      closeModal();
-      renderDashboard();
-    }
+        // Creates a Promise to fetch a single CSV
+        const fetchSheet = (url) => {
+            return new Promise((resolve, reject) => {
+                Papa.parse(url, {
+                    download: true,
+                    header: true,
+                    dynamicTyping: true,
+                    complete: function(results) { resolve(results.data); },
+                    error: function(error) { reject(error); }
+                });
+            });
+        };
 
-    function removeTransaction(id) {
-      appState.transactions = appState.transactions.filter(t => t.id !== id);
-      renderDashboard();
-    }
+        // Fetches all sheets at the same time and renders the dashboard
+        const loadDashboard = async () => {
+            try {
+                // Wait for all 5 downloads to finish simultaneously
+                const datasets = await Promise.all(sheetURLs.map(url => fetchSheet(url)));
+                
+                console.log("All Database Tabs Connected Successfully!");
 
-    // RENDER PIPELINE
-    function renderDashboard() {
-      // Header Info
-      $('hdr-name').textContent = appState.name;
-      $('hdr-avatar').textContent = appState.name.charAt(0).toUpperCase();
-      
-      const endDt = new Date(appState.sprintStartDate);
-      endDt.setDate(endDt.getDate() + 13);
-      $('hdr-sprint-dates').textContent = `${fmtDt(appState.sprintStartDate)} – ${fmtDt(endDt)}`;
-
-      // Reset Balances
-      appState.accounts.forEach(a => a.currentBalance = a.initialBalance);
-
-      let cycleIn = 0, cycleEx = 0;
-      let oocIncome = 0, oocExpense = 0;
-      let catTotals = {};
-      Object.keys(catConfig).forEach(k => catTotals[k] = 0);
-
-      // Process Transactions
-      appState.transactions.forEach(tx => {
-        // Balances
-        if (tx.isSplit && tx.type === 'income') {
-          tx.splitDetails.forEach(sd => {
-            const acc = appState.accounts.find(a => a.id === sd.accountId);
-            if (acc) acc.currentBalance += sd.amount;
-          });
-        } else {
-          const acc = appState.accounts.find(a => a.id === tx.accountId);
-          if (acc) {
-            if (tx.type === 'income') acc.currentBalance += tx.amount;
-            else acc.currentBalance -= tx.amount;
-          }
-        }
-
-        // Totals
-        if (tx.isOutOfCycle) {
-          if (tx.type === 'income') oocIncome += tx.amount;
-          else oocExpense += tx.amount;
-        } else {
-          if (tx.type === 'income') cycleIn += tx.amount;
-          else {
-            cycleEx += tx.amount;
-            if (catTotals[tx.category] !== undefined) catTotals[tx.category] += tx.amount;
-          }
-        }
-      });
-
-      const netFlow = cycleIn - cycleEx;
-
-      renderAccounts();
-      renderCategoryBars(catTotals, cycleEx);
-      renderLedger(netFlow);
-      renderTimeline(appState.sprintStartDate);
-      renderKPI(netFlow);
-      renderAI(netFlow, oocIncome, oocExpense, cycleIn, cycleEx, catTotals);
-    }
-
-    function renderAccounts() {
-      let html = '';
-      appState.accounts.forEach(a => {
-        const isNeg = a.currentBalance < 0;
-        const color = isNeg ? 'var(--rose)' : 'var(--t1)';
-        const shadow = isNeg ? 'var(--rose)' : 'var(--emerald)';
-        const dot = isNeg ? 'var(--rose)' : 'var(--emerald)';
-        
-        html += `
-          <div class="card card-hover acc-item">
-            <div style="position:absolute; top:0; right:0; width:100%; height:100%; background:linear-gradient(135deg, transparent 50%, ${isNeg ? 'rgba(244,63,94,0.03)' : 'rgba(0,229,255,0.03)'}); pointer-events:none;"></div>
-            <span class="t-label" style="margin:0;">${a.name}</span>
-            <div class="t-num" style="font-size:28px; font-weight:600; color:${color}; margin: 4px 0;">
-              ${isNeg ? '-$' : '$'}${fmt(Math.abs(a.currentBalance))}
-            </div>
-            <div class="flex items-center gap-2" style="font-size:11px; color:var(--t3);">
-              <div style="width:7px; height:7px; border-radius:50%; background:${dot}; box-shadow:0 0 6px ${shadow};"></div>
-              Base: $${fmt(a.initialBalance)}
-            </div>
-          </div>
-        `;
-      });
-
-      html += `
-        <div class="card card-hover acc-item flex items-center justify-center" style="border-style:dashed; cursor:pointer; min-height:90px;" onclick="openModal()">
-          <span style="color:var(--t3); font-size:13px; font-weight:500;">+ Add Transaction</span>
-        </div>
-      `;
-      $('accounts-grid').innerHTML = html;
-    }
-
-    function renderCategoryBars(totals, cycleEx) {
-      $('cat-total').textContent = '$' + fmt(cycleEx);
-      
-      const sorted = Object.entries(totals)
-        .filter(([_, val]) => val > 0)
-        .sort((a,b) => b[1] - a[1]);
-
-      if (sorted.length === 0) {
-        $('category-bars').innerHTML = '<div class="text-t3" style="font-style:italic; font-size:13px; text-align:center; padding:20px 0;">No expense data this sprint yet.</div>';
-        return;
-      }
-
-      let html = '';
-      const elementsToAnimate = [];
-
-      sorted.forEach(([k, val], i) => {
-        const conf = catConfig[k];
-        const pct = cycleEx > 0 ? (val / cycleEx) * 100 : 0;
-        const id = 'cat-bar-' + i;
-        
-        html += `
-          <div class="cat-row">
-            <div style="width:7px; height:7px; background:${conf.color}; border-radius:2px;"></div>
-            <div style="flex:1; color:var(--t1);">${conf.label}</div>
-            <div class="text-t3 t-num" style="font-size:12px; width:36px; text-align:right;">${Math.round(pct)}%</div>
-            <div class="t-num text-t1" style="width:64px; text-align:right;">$${fmt(val)}</div>
-          </div>
-          <div class="cat-bar-bg" style="margin-bottom:16px;">
-            <div id="${id}" class="cat-bar-fill" style="background:${conf.color}; box-shadow:0 0 8px ${conf.color}55;"></div>
-          </div>
-        `;
-        elementsToAnimate.push({ id, pct });
-      });
-
-      $('category-bars').innerHTML = html;
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          elementsToAnimate.forEach(el => {
-            const dom = $(el.id);
-            if (dom) dom.style.width = el.pct + '%';
-          });
-        });
-      });
-    }
-
-    function renderLedger(netFlow) {
-      const nfEl = $('net-flow');
-      nfEl.textContent = (netFlow > 0 ? '+$' : (netFlow < 0 ? '-$' : '$')) + fmt(Math.abs(netFlow));
-      nfEl.className = 't-num ' + (netFlow > 0 ? 'text-emerald' : (netFlow < 0 ? 'text-rose' : 'text-t3'));
-
-      if (appState.transactions.length === 0) {
-        $('ledger-body').innerHTML = '<tr><td colspan="5" class="text-t3" style="text-align:center; padding:30px 0; font-style:italic;">No transactions logged.</td></tr>';
-        return;
-      }
-
-      let html = '';
-      // Reverse to show newest at top
-      [...appState.transactions].reverse().forEach(tx => {
-        const isInc = tx.type === 'income';
-        const colorClass = isInc ? 'text-emerald' : 'text-t1';
-        const sign = isInc ? '+' : '−';
-        
-        let accName = 'Unknown';
-        if (tx.isSplit) {
-          accName = '<span style="color:var(--cyan); font-size:11px;">Split — 2 accts</span>';
-        } else {
-          const acc = appState.accounts.find(a => a.id === tx.accountId);
-          if (acc) accName = acc.name;
-        }
-
-        html += `
-          <tr>
-            <td class="text-t2">${fmtDt(tx.dateObj)}</td>
-            <td style="color:var(--t1); font-weight:500;">
-              ${tx.name}
-              ${tx.isOutOfCycle ? '<span class="badge-base badge-violet" style="margin-left:8px; transform:scale(0.85); transform-origin:left;">Future</span>' : ''}
-            </td>
-            <td class="text-t2">${accName}</td>
-            <td class="t-num ${colorClass}" style="text-align:right;">${sign}$${fmt(tx.amount)}</td>
-            <td style="text-align:right;">
-              <button class="del-btn" onclick="removeTransaction('${tx.id}')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              </button>
-            </td>
-          </tr>
-        `;
-      });
-      $('ledger-body').innerHTML = html;
-    }
-
-    function renderKPI(netFlow) {
-      const kpi = $('spendable-kpi');
-      const card = $('kpi-card');
-      
-      kpi.textContent = (netFlow < 0 ? '-$' : '$') + fmt(Math.abs(netFlow));
-      
-      if (netFlow > 500) {
-        kpi.className = 't-num text-emerald';
-        kpi.style.textShadow = '0 0 30px rgba(16,185,129,0.18)';
-        card.style.borderTopColor = 'var(--cyan)';
-      } else if (netFlow > 0) {
-        kpi.className = 't-num text-t1';
-        kpi.style.textShadow = 'none';
-        card.style.borderTopColor = 'var(--cyan)';
-      } else if (netFlow < 0) {
-        kpi.className = 't-num text-rose';
-        kpi.style.textShadow = '0 0 30px rgba(244,63,94,0.18)';
-        card.style.borderTopColor = 'var(--rose)';
-      } else {
-        kpi.className = 't-num text-t1';
-        kpi.style.textShadow = 'none';
-        card.style.borderTopColor = 'var(--cyan)';
-      }
-    }
-
-    function renderTimeline(start) {
-      let html = '';
-      const today = new Date().toDateString();
-
-      for (let i = 0; i < 14; i++) {
-        const d = new Date(start);
-        d.setDate(d.getDate() + i);
-        
-        const txs = appState.transactions.filter(t => t.dateObj.toDateString() === d.toDateString());
-        
-        let hasInc = false, hasExp = false;
-        let linesHtml = '';
-        
-        txs.forEach(t => {
-          if (t.type === 'income') hasInc = true;
-          else hasExp = true;
-          
-          const color = t.type === 'income' ? 'var(--emerald)' : 'var(--t2)';
-          const sign = t.type === 'income' ? '+' : '−';
-          linesHtml += `<div class="t-num" style="font-size:12px; color:${color}; margin-top:4px;">${t.name} <span style="opacity:0.6">${sign}$${fmt(t.amount)}</span></div>`;
-        });
-
-        let dotColor = 'rgba(255,255,255,0.10)';
-        let shadow = 'none';
-        if (hasInc && hasExp) { dotColor = 'var(--cyan)'; shadow = '0 0 8px var(--cyan)'; }
-        else if (hasInc) { dotColor = 'var(--emerald)'; shadow = '0 0 8px var(--emerald)'; }
-        else if (hasExp) { dotColor = 'var(--rose)'; shadow = '0 0 8px var(--rose)'; }
-
-        const isToday = d.toDateString() === today;
-        const outlineStr = isToday ? 'outline: 2px solid rgba(255,255,255,0.2); outline-offset: 2px;' : '';
-        
-        let suffix = '';
-        if (i === 0) suffix = ' · Start';
-        if (i === 13) suffix = ' · End';
-        
-        const labelColor = isToday ? 'var(--cyan)' : 'var(--t3)';
-        const labelText = isToday ? fmtDt(d) + ' · Today' : fmtDt(d) + suffix;
-
-        html += `
-          <div style="position:relative; padding: 0 0 16px 14px;">
-            <div style="position:absolute; left:-6px; top:2px; width:10px; height:10px; border-radius:50%; background:${dotColor}; border:2px solid var(--bg); box-shadow:${shadow}; ${outlineStr}"></div>
-            <div class="t-num" style="font-size:10px; color:${labelColor}; text-transform:uppercase; letter-spacing:0.05em;">${labelText}</div>
-            ${linesHtml}
-          </div>
-        `;
-      }
-      $('timeline').innerHTML = html;
-    }
-
-    function renderAI(netFlow, oocInc, oocExp, cycleIn, cycleEx, catTotals) {
-      if (appState.transactions.length === 0) {
-        $('ai-insights').innerHTML = 'Awaiting sprint data to generate insights...';
-        return;
-      }
-
-      let text = '';
-      
-      if (netFlow > 0) {
-        let maxCat = ''; let maxVal = -1;
-        Object.entries(catTotals).forEach(([k,v]) => { if(v > maxVal) { maxVal = v; maxCat = catConfig[k].label; }});
-        text += `Sprint is tracking a <span class="text-emerald bold">+$${fmt(netFlow)} surplus</span>. `;
-        if (maxVal > 0) text += `Largest category: <span class="bold text-t1">${maxCat}</span> at $${fmt(maxVal)}. `;
-      } else if (netFlow < 0) {
-        text += `Expenditure exceeds income by <span class="text-rose bold">$${fmt(Math.abs(netFlow))}</span>. Consider deferring non-essential outflows. `;
-      } else {
-        text += `Sprint is perfectly balanced at $0 net flow. `;
-      }
-
-      if (oocExp > 0) {
-        text += `<br><br><span class="text-amber">⚠ Future reconciliations</span> will draw <span class="bold text-t1">$${fmt(oocExp)}</span> from global balances outside this sprint. `;
-      }
-      if (oocInc > 0) {
-        text += `<br><br><span class="text-emerald">↑ Future income</span> of <span class="bold text-t1">$${fmt(oocInc)}</span> projected outside this sprint. `;
-      }
-
-      if (appState.transactions.length >= 3) {
-        text += `<br><br>${appState.transactions.length} transactions logged across ${appState.accounts.length} accounts.`;
-      }
-
-      $('ai-insights').innerHTML = text;
-    }
-
-  </script>
-
-  <script type="module">
-    try {
-      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js');
-      const { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js');
-      const { getFirestore, doc, setDoc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js');
-
-      const firebaseConfig = {
-        apiKey:            "AIzaSyDLaUQzt1DzvhP6tPlp1S2UPW_MGKnVfHs",
-        authDomain:        "fintech20-26.firebaseapp.com",
-        projectId:         "fintech20-26",
-        storageBucket:     "fintech20-26.firebasestorage.app",
-        messagingSenderId: "151994118017",
-        appId:             "1:151994118017:web:4702e7e0de34817c7b8280"
-      };
-
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      const db = getFirestore(app);
-
-      window.signInWithGoogle = async () => {
-        try { await signInWithPopup(auth, new GoogleAuthProvider()); }
-        catch(e) { console.warn(e.message); }
-      };
-
-      window.saveToCloud = async () => {
-        const user = auth.currentUser;
-        if (!user) return alert('Please sign in to sync.');
-        const btn = document.getElementById('ui-save-btn');
-        btn.textContent = 'Syncing...';
-        
-        const safe = JSON.parse(JSON.stringify(window.appState)); 
-        await setDoc(doc(db, 'ledgers', user.uid), safe);
-        
-        btn.textContent = '✓ Synced';
-        setTimeout(() => { btn.textContent = 'Sync Cloud'; }, 2000);
-      };
-
-      onAuthStateChanged(auth, async (user) => {
-        const btn = document.getElementById('ui-auth-btn');
-        if (user) {
-          btn.textContent = `Sign Out (${user.email.split('@')[0]})`;
-          btn.onclick = async () => { await signOut(auth); location.reload(); };
-          
-          const snap = await getDoc(doc(db, 'ledgers', user.uid));
-          if (snap.exists()) {
-            const data = snap.data();
-            window.appState = data;
-            window.appState.sprintStartDate = new Date(data.sprintStartDate);
-            window.appState.transactions.forEach(tx => tx.dateObj = new Date(tx.dateObj));
-            
-            populateAccountSelects();
-            
-            if (document.getElementById('onboarding').style.display !== 'none') {
-              document.getElementById('onboarding').style.display = 'none';
-              document.getElementById('dashboard').style.display = 'flex';
+                // Map datasets to their respective UI components
+                renderExpenseTable(datasets[0], 'out-of-pocket-body', 'out-of-pocket-total');
+                renderExpenseTable(datasets[1], 'bank-initiated-body', 'bank-initiated-total');
+                renderFillUps(datasets[2]);
+                renderReconciliation(datasets[3], 'bank-recon-body');
+                renderReconciliation(datasets[4], 'grocery-budget-body');
+                
+            } catch (error) {
+                console.error("Error fetching database tabs:", error);
             }
-            renderDashboard();
-          }
-        } else {
-          btn.textContent = 'Sign In';
-          btn.onclick = window.signInWithGoogle;
-        }
-      });
+        };
 
-    } catch(e) {
-      console.info('Ledger: running in demo mode —', e.message);
-      window.signInWithGoogle = () => alert('Google Sign-In is available when this file is hosted on a web server or opened from your local filesystem. Cloud sync will activate automatically.');
-      window.saveToCloud = () => alert('Host this file on a web server to enable cloud sync.');
-    }
-  </script>
+        // Start the engine
+        loadDashboard();
+
+    </script>
 </body>
 </html>
