@@ -44,7 +44,7 @@
             color: var(--text-main);
         }
 
-        /* Grid Layout for the Dashboard */
+        /* Grid Layout */
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -52,7 +52,7 @@
             align-items: start;
         }
 
-        /* Card Styling */
+        /* Cards */
         .card {
             background: var(--card-bg);
             border-radius: 12px;
@@ -73,11 +73,9 @@
         .header-green { background-color: var(--header-green); color: #047857; }
         .header-purple { background-color: var(--header-purple); color: #6d28d9; }
 
-        .card-body {
-            padding: 0;
-        }
+        .card-body { padding: 0; }
 
-        /* Table Styling */
+        /* Tables */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -97,9 +95,7 @@
             font-weight: 500;
         }
 
-        tr:last-child td {
-            border-bottom: none;
-        }
+        tr:last-child td { border-bottom: none; }
 
         /* Status Badges */
         .badge {
@@ -113,7 +109,6 @@
         .badge-paid, .badge-available { background-color: #d1fae5; color: #065f46; }
         .badge-used, .badge-unreconciled { background-color: #fee2e2; color: #991b1b; }
 
-        /* Totals Row */
         .total-row {
             background-color: #f9fafb;
             font-weight: 700;
@@ -127,6 +122,40 @@
 
         .amount-red { color: var(--danger-red); }
         .amount-green { color: var(--success-green); }
+
+        /* Inline Editing UI */
+        .add-row-btn {
+            cursor: pointer;
+            color: var(--primary-blue);
+            font-weight: 600;
+            text-align: center;
+            background-color: #ffffff;
+            transition: background-color 0.2s;
+        }
+
+        .add-row-btn:hover { background-color: #eff6ff; }
+
+        .inline-input {
+            width: 100%;
+            padding: 0.4rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+
+        .save-btn {
+            background: var(--success-green);
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .save-btn:hover { background: #059669; }
 
         /* Summary Stats Cards */
         .summary-card {
@@ -268,10 +297,78 @@
         };
 
         // ---------------------------------------------------------
-        // 2. RENDER FUNCTIONS
+        // 2. INTERACTIVE UI FUNCTIONS
+        // ---------------------------------------------------------
+
+        // Transforms the "Add Row" button into input fields
+        const openInlineForm = (tbodyId) => {
+            document.getElementById(`add-btn-${tbodyId}`).style.display = 'none';
+            document.getElementById(`inline-form-${tbodyId}`).style.display = 'table-row';
+            document.getElementById(`input-amount-${tbodyId}`).focus();
+        };
+
+        // Gathers data from the inputs and sends it to Google Sheets
+        const saveInlineExpense = async (tbodyId, tabName) => {
+            const amountInput = document.getElementById(`input-amount-${tbodyId}`);
+            const nameInput = document.getElementById(`input-name-${tbodyId}`);
+            const statusInput = document.getElementById(`input-status-${tbodyId}`);
+            const saveBtn = statusInput.nextElementSibling;
+
+            const amount = parseFloat(amountInput.value);
+            const name = nameInput.value.trim();
+            const status = statusInput.value;
+
+            // Basic validation
+            if (!amount || !name) {
+                alert("Please enter both an amount and a name.");
+                return;
+            }
+
+            // Visual loading state
+            saveBtn.innerText = '...';
+            saveBtn.style.background = 'var(--text-muted)';
+            saveBtn.disabled = true;
+
+            // YOUR Web App URL
+            const scriptURL = "https://script.google.com/macros/s/AKfycbzv8nN_pnwlCEaS6cPZ4b7qkl8y0Klb-oHO8eY3k-gao9HG_M5yeuWi2is0aJC3cbohnw/exec"; 
+
+            // The data structure matching your Apps Script
+            // Note: The empty string "" acts as a placeholder for the Due_Date column
+            const expenseData = {
+                tabName: tabName,
+                row: [amount, name, "", status] 
+            };
+
+            try {
+                const response = await fetch(scriptURL, {
+                    method: "POST",
+                    body: JSON.stringify(expenseData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.result === "success") {
+                    // Instantly refresh the screen with the new data!
+                    await loadDashboard();
+                } else {
+                    throw new Error("Backend failed to update sheet.");
+                }
+                
+            } catch (error) {
+                console.error("Error saving data:", error);
+                alert("Failed to save data. Please check the console.");
+                saveBtn.innerText = 'Save';
+                saveBtn.style.background = 'var(--success-green)';
+                saveBtn.disabled = false;
+            }
+        };
+
+        // ---------------------------------------------------------
+        // 3. RENDER FUNCTIONS
         // ---------------------------------------------------------
         
-        const renderExpenseTable = (liveData, tbodyId, totalId) => {
+        // Renders primary tables and appends the interactive inline form
+        const renderExpenseTable = (liveData, tbodyId, totalId, tabName) => {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = ''; 
             let total = 0;
@@ -289,6 +386,27 @@
                     </tr>
                 `;
             });
+
+            // Inject the interactive "Add New Row" feature at the bottom of the data
+            tbody.innerHTML += `
+                <tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')">
+                    <td colspan="3">+ Add New Expense</td>
+                </tr>
+                <tr id="inline-form-${tbodyId}" style="display: none; background-color: #f9fafb;">
+                    <td><input type="number" id="input-amount-${tbodyId}" class="inline-input" placeholder="0.00" step="0.01"></td>
+                    <td><input type="text" id="input-name-${tbodyId}" class="inline-input" placeholder="Name"></td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <select id="input-status-${tbodyId}" class="inline-input">
+                                <option value="PAID">PAID</option>
+                                <option value="UNPAID">UNPAID</option>
+                            </select>
+                            <button class="save-btn" onclick="saveInlineExpense('${tbodyId}', '${tabName}')">Save</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
             document.getElementById(totalId).innerText = formatMoney(total);
         };
 
@@ -350,10 +468,9 @@
         };
 
         // ---------------------------------------------------------
-        // 3. FETCH AND INITIALIZE DATABASE
+        // 4. FETCH AND INITIALIZE DATABASE
         // ---------------------------------------------------------
         
-        // The five live Google Sheets tab URLs
         const sheetURLs = [
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=0&single=true&output=csv",
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=1661018450&single=true&output=csv",
@@ -362,7 +479,6 @@
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=1532222316&single=true&output=csv"
         ];
 
-        // Creates a Promise to fetch a single CSV
         const fetchSheet = (url) => {
             return new Promise((resolve, reject) => {
                 Papa.parse(url, {
@@ -375,17 +491,13 @@
             });
         };
 
-        // Fetches all sheets at the same time and renders the dashboard
         const loadDashboard = async () => {
             try {
-                // Wait for all 5 downloads to finish simultaneously
                 const datasets = await Promise.all(sheetURLs.map(url => fetchSheet(url)));
                 
-                console.log("All Database Tabs Connected Successfully!");
-
-                // Map datasets to their respective UI components
-                renderExpenseTable(datasets[0], 'out-of-pocket-body', 'out-of-pocket-total');
-                renderExpenseTable(datasets[1], 'bank-initiated-body', 'bank-initiated-total');
+                // Pass the Tab Names to the rendering engine so the Save buttons know where to send data
+                renderExpenseTable(datasets[0], 'out-of-pocket-body', 'out-of-pocket-total', 'Out_Of_Pocket');
+                renderExpenseTable(datasets[1], 'bank-initiated-body', 'bank-initiated-total', 'Bank_Initiated');
                 renderFillUps(datasets[2]);
                 renderReconciliation(datasets[3], 'bank-recon-body');
                 renderReconciliation(datasets[4], 'grocery-budget-body');
@@ -397,33 +509,6 @@
 
         // Start the engine
         loadDashboard();
-
-           async function addExpense() {
-    // The user replaces this with their copied Web App URL
-    const scriptURL = "https://script.google.com/macros/s/AKfycbzv8nN_pnwlCEaS6cPZ4b7qkl8y0Klb-oHO8eY3k-gao9HG_M5yeuWi2is0aJC3cbohnw/exec"; 
-
-    // The data payload to send to the Google Sheet
-    const expenseData = {
-        tabName: "Out_Of_Pocket",
-        row: [50.00, "Dinner", "6/18/2026", "PAID"] // Matches: Amount, Name, Due_Date, Status
-    };
-
-    try {
-        console.log("Saving to database...");
-        const response = await fetch(scriptURL, {
-            method: "POST",
-            body: JSON.stringify(expenseData)
-        });
-        
-        const result = await response.json();
-        console.log("Success!", result);
-        
-        // The user can run loadDashboard() here to instantly refresh the screen with the new data!
-        
-    } catch (error) {
-        console.error("Error saving data:", error);
-    }
-} 
 
     </script>
 </body>
