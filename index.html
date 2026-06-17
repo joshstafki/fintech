@@ -411,6 +411,31 @@
             };
 
             try {
+                // Bypass the strict browser origin check
+                await fetch(scriptURL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: {
+                        "Content-Type": "text/plain"
+                    },
+                    body: JSON.stringify(expenseData)
+                });
+                
+                // Wait 600ms for the spreadsheet to update, then reload the dashboard
+                setTimeout(async () => {
+                    await loadDashboard();
+                }, 600);
+                
+            } catch (error) {
+                console.error("Error saving data:", error);
+                alert("Failed to save data. Please check the console.");
+                saveBtn.innerText = 'Save';
+                saveBtn.style.background = 'var(--success-green)';
+                saveBtn.disabled = false;
+            }
+        };
+
+            try {
                 const response = await fetch(scriptURL, {
                     method: "POST",
                     body: JSON.stringify(expenseData)
