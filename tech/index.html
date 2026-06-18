@@ -54,6 +54,11 @@
         .save-btn { background: var(--success-green); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
         .save-btn:hover { background: #059669; }
         
+        /* NEW STYLES FOR DELETE BUTTON */
+        .action-cell { display: flex; justify-content: space-between; align-items: center; }
+        .delete-btn { color: #d1d5db; font-size: 1.2rem; cursor: pointer; padding-left: 0.75rem; transition: color 0.2s; font-weight: bold; line-height: 1; }
+        .delete-btn:hover { color: var(--danger-red); }
+
         .summary-card { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
         .summary-title { font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
         .summary-value { font-size: 2rem; font-weight: 700; }
@@ -74,7 +79,6 @@
     </div>
 
     <div class="dashboard-grid">
-        
         <div>
             <div class="card">
                 <div class="card-header header-blue">Out of Pocket Expenses</div>
@@ -168,22 +172,14 @@
 
             const data = {
                 labels: ['Expenses', 'Remaining'],
-                datasets: [{
-                    data: [expenses, remaining],
-                    backgroundColor: ['#ef4444', '#10b981'],
-                    borderWidth: 0
-                }]
+                datasets: [{ data: [expenses, remaining], backgroundColor: ['#ef4444', '#10b981'], borderWidth: 0 }]
             };
 
             if (revenueChartInstance) {
                 revenueChartInstance.data = data;
                 revenueChartInstance.update();
             } else {
-                revenueChartInstance = new Chart(ctx, {
-                    type: 'pie',
-                    data: data,
-                    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-                });
+                revenueChartInstance = new Chart(ctx, { type: 'pie', data: data, options: { responsive: true, plugins: { legend: { position: 'bottom' } } } });
             }
         };
 
@@ -214,6 +210,34 @@
             document.getElementById(`input-name-${tbodyId}`).focus();
         };
 
+        // NEW: DELETE FUNCTION
+        const deleteItem = async (btnElement, tabName, amount, isRecon = false) => {
+            const row = btnElement.closest('tr');
+            const name = row.cells[isRecon ? 0 : 1].innerText.trim();
+            const numAmount = parseFloat(amount) || 0;
+
+            // 1. Instantly remove row from DOM
+            row.remove();
+
+            // 2. Instantly reverse the math
+            if (isRecon) {
+                reconBalances[tabName].expenses -= numAmount;
+                const tbodyId = tabName === 'Bank_Reconciliation' ? 'bank-recon-body' : 'grocery-budget-body';
+                recalcRecon(tbodyId, tabName);
+            } else if (tabName !== 'Fill_Ups') {
+                expenseTotals[tabName] -= numAmount;
+                const totalId = tabName === 'Out_Of_Pocket' ? 'out-of-pocket-total' : 'bank-initiated-total';
+                document.getElementById(totalId).innerText = formatMoney(expenseTotals[tabName]);
+                calculateRevenue();
+            }
+
+            // 3. Send DELETE payload to Google Apps Script
+            const payload = { action: "DELETE", tabName: tabName, name: name };
+            try {
+                fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
+            } catch (error) { console.error("Error deleting:", error); }
+        };
+
         const saveInlineExpense = async (tbodyId, tabName, isFillUp = false) => {
             const nameInput = document.getElementById(`input-name-${tbodyId}`);
             const statusInput = document.getElementById(`input-status-${tbodyId}`);
@@ -225,17 +249,15 @@
 
             if (!name) { alert("Please enter a name."); return; }
 
-            // OPTIMISTIC UI INSTANT UPDATE
+            // MODIFIED: Inject delete button into optimistic UI
             let newRowHTML = "";
             if (isFillUp) {
-                newRowHTML = `<tr><td>${name}</td><td style="text-align: right;"><span class="badge ${getBadgeClass(status)}">${status}</span></td></tr>`;
+                newRowHTML = `<tr><td>${name}</td><td class="action-cell" style="text-align: right;"><span class="badge ${getBadgeClass(status)}">${status}</span> <span class="delete-btn" title="Delete" onclick="deleteItem(this, '${tabName}', 0, false)">×</span></td></tr>`;
             } else {
-                newRowHTML = `<tr><td class="amount-cell amount-red">${formatMoney(amount)}</td><td>${name}</td><td><span class="badge ${getBadgeClass(status)}">${status}</span></td></tr>`;
+                newRowHTML = `<tr><td class="amount-cell amount-red">${formatMoney(amount)}</td><td>${name}</td><td class="action-cell"><span class="badge ${getBadgeClass(status)}">${status}</span> <span class="delete-btn" title="Delete" onclick="deleteItem(this, '${tabName}', ${amount}, false)">×</span></td></tr>`;
                 expenseTotals[tabName] += amount;
                 const totalId = tbodyId.replace('-body', '-total');
-                if (document.getElementById(totalId)) {
-                    document.getElementById(totalId).innerText = formatMoney(expenseTotals[tabName]);
-                }
+                if (document.getElementById(totalId)) { document.getElementById(totalId).innerText = formatMoney(expenseTotals[tabName]); }
                 calculateRevenue(); 
             }
 
@@ -248,13 +270,8 @@
             document.getElementById(`inline-form-${tbodyId}`).style.display = 'none';
             addBtnRow.style.display = 'table-row';
 
-            // BACKGROUND SAVE
             const expenseData = { tabName: tabName, row: isFillUp ? [name, status] : [amount, name, "", status] };
-            try {
-                fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
-            } catch (error) { 
-                console.error("Error:", error); 
-            }
+            try { fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) }); } catch (error) {}
         };
 
         const recalcRecon = (tbodyId, tabName) => {
@@ -281,51 +298,39 @@
 
             if (!name || isNaN(amount)) { alert("Please enter both a name and an amount."); return; }
 
-            // OPTIMISTIC UI INSTANT UPDATE
             reconBalances[tabName].expenses += amount;
             recalcRecon(tbodyId, tabName);
 
-            const newRowHTML = `<tr><td>${name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`;
+            // MODIFIED: Inject delete button into optimistic UI
+            const newRowHTML = `<tr><td>${name}</td><td class="action-cell amount-red" style="text-align: right; justify-content: flex-end;">-${formatMoney(amount)} <span class="delete-btn" title="Delete" onclick="deleteItem(this, '${tabName}', ${amount}, true)">×</span></td></tr>`;
             const totalRow = document.getElementById(`total-row-${tbodyId}`);
             totalRow.insertAdjacentHTML('beforebegin', newRowHTML);
 
-            amountInput.value = '';
-            nameInput.value = '';
+            amountInput.value = ''; nameInput.value = '';
             document.getElementById(`inline-form-${tbodyId}`).style.display = 'none';
             document.getElementById(`add-btn-${tbodyId}`).style.display = 'table-row';
 
-            // BACKGROUND SAVE
             const expenseData = { tabName: tabName, row: [amount, name, "OTHER"] };
-            try {
-                fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
-            } catch (error) { 
-                console.error("Error:", error); 
-            }
+            try { fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) }); } catch (error) {}
         };
 
         const performHardReset = async () => {
-            const confirm1 = confirm("⚠️ DANGER: This will delete ALL data. Are you absolutely sure?");
-            if (!confirm1) return;
-            const confirm2 = confirm("FINAL WARNING: This cannot be undone. Click OK to wipe everything.");
-            if (!confirm2) return;
-
+            if (!confirm("⚠️ DANGER: This will delete ALL data. Are you absolutely sure?")) return;
+            if (!confirm("FINAL WARNING: This cannot be undone. Click OK to wipe everything.")) return;
             try {
                 await fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ action: "RESET" }) });
-                alert("Data reset successfully.");
-                location.reload();
-            } catch (error) {
-                console.error("Error:", error);
-                alert("Failed to reset.");
-            }
+                alert("Data reset successfully."); location.reload();
+            } catch (error) { alert("Failed to reset."); }
         };
 
+        // MODIFIED RENDERERS: Inject delete button into fetched rows
         const renderExpenseTable = (liveData, tbodyId, totalId, tabName) => {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = ''; let total = 0;
             liveData.forEach(item => {
                 if (!item.Name) return; 
                 total += (item.Amount || 0);
-                tbody.innerHTML += `<tr><td class="amount-cell amount-red">${formatMoney(item.Amount || 0)}</td><td>${item.Name}</td><td><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span></td></tr>`;
+                tbody.innerHTML += `<tr><td class="amount-cell amount-red">${formatMoney(item.Amount || 0)}</td><td>${item.Name}</td><td class="action-cell"><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span> <span class="delete-btn" title="Delete" onclick="deleteItem(this, '${tabName}', ${item.Amount || 0}, false)">×</span></td></tr>`;
             });
             expenseTotals[tabName] = total;
             tbody.innerHTML += `<tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')"><td colspan="3">+ Add New</td></tr>
@@ -340,7 +345,9 @@
         const renderFillUps = (liveData) => {
             const tbody = document.getElementById('fill-ups-body');
             tbody.innerHTML = '';
-            liveData.forEach(item => { if (item.Name) tbody.innerHTML += `<tr><td>${item.Name}</td><td style="text-align: right;"><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span></td></tr>`; });
+            liveData.forEach(item => { 
+                if (item.Name) tbody.innerHTML += `<tr><td>${item.Name}</td><td class="action-cell" style="text-align: right; justify-content: flex-end;"><span class="badge ${getBadgeClass(item.Status)}">${item.Status || ''}</span> <span class="delete-btn" title="Delete" onclick="deleteItem(this, 'Fill_Ups', 0, false)">×</span></td></tr>`; 
+            });
             tbody.innerHTML += `<tr id="add-btn-fill-ups-body" class="add-row-btn" onclick="openInlineForm('fill-ups-body')"><td colspan="2">+ Add New</td></tr>
                 <tr id="inline-form-fill-ups-body" style="display: none; background-color: #f9fafb;">
                     <td><input type="text" id="input-name-fill-ups-body" class="inline-input" placeholder="Name (e.g. Fill Up 1)"></td>
@@ -351,30 +358,17 @@
         const renderReconciliation = (liveData, tbodyId, tabName) => {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = ''; 
-            
-            // Load starting balance from localStorage
             const savedStart = localStorage.getItem(`start_${tabName}`) || (tabName === 'Bank_Reconciliation' ? 2500.00 : 500.00);
             
-            // Render the Editable Starting Row
-            tbody.innerHTML += `
-                <tr style="background: #f9fafb;">
-                    <td style="display: flex; align-items: baseline; font-weight: bold;">
-                        <span style="color: var(--text-muted); margin-right: 2px;">$</span>
-                        <input type="number" id="start-input-${tbodyId}" class="ghost-input" style="font-size: 1rem; padding: 0;" value="${savedStart}" step="0.01" oninput="recalcRecon('${tbodyId}', '${tabName}')">
-                    </td>
-                    <td style="text-align: right; color: var(--text-muted);">Starting Balance</td>
-                </tr>
-            `;
+            tbody.innerHTML += `<tr style="background: #f9fafb;"><td style="display: flex; align-items: baseline; font-weight: bold;"><span style="color: var(--text-muted); margin-right: 2px;">$</span><input type="number" id="start-input-${tbodyId}" class="ghost-input" style="font-size: 1rem; padding: 0;" value="${savedStart}" step="0.01" oninput="recalcRecon('${tbodyId}', '${tabName}')"></td><td style="text-align: right; color: var(--text-muted);">Starting Balance</td></tr>`;
 
             let expenseTotal = 0;
             liveData.forEach(item => {
                 if (!item.Name) return; 
-                // Ignore any old 'STARTING' rows from the Google Sheet so we don't double count
                 if ((item.Type || '').toString().toUpperCase() === 'STARTING') return;
-
                 const amount = parseFloat(item.Amount) || 0;
                 expenseTotal += amount; 
-                tbody.innerHTML += `<tr><td>${item.Name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`; 
+                tbody.innerHTML += `<tr><td>${item.Name}</td><td class="action-cell amount-red" style="text-align: right; justify-content: flex-end;">-${formatMoney(amount)} <span class="delete-btn" title="Delete" onclick="deleteItem(this, '${tabName}', ${amount}, true)">×</span></td></tr>`; 
             });
 
             reconBalances[tabName] = { start: parseFloat(savedStart), expenses: expenseTotal };
@@ -382,16 +376,10 @@
 
             tbody.innerHTML += `<tr id="total-row-${tbodyId}" class="total-row"><td id="balance-amount-${tbodyId}" class="${currentBalance < 0 ? 'amount-red' : (currentBalance === 0 ? 'amount-green' : '')}">${formatMoney(currentBalance)}</td><td id="balance-status-${tbodyId}" style="text-align: right; font-size: 0.8rem; color: ${currentBalance === 0 ? 'var(--success-green)' : 'var(--danger-red)'};">${currentBalance === 0 ? 'RECONCILED' : 'NOT RECONCILED'}</td></tr>`;
 
-            tbody.innerHTML += `
-                <tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')"><td colspan="2">+ Add New</td></tr>
+            tbody.innerHTML += `<tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')"><td colspan="2">+ Add New</td></tr>
                 <tr id="inline-form-${tbodyId}" style="display: none; background-color: #f9fafb;">
                     <td><input type="number" id="input-amount-${tbodyId}" class="inline-input" placeholder="0.00" step="0.01"></td>
-                    <td>
-                        <div style="display: flex; gap: 0.5rem; align-items: center;">
-                            <input type="text" id="input-name-${tbodyId}" class="inline-input" placeholder="Name">
-                            <button class="save-btn" onclick="saveReconciliation('${tbodyId}', '${tabName}')">Save</button>
-                        </div>
-                    </td>
+                    <td><div style="display: flex; gap: 0.5rem; align-items: center;"><input type="text" id="input-name-${tbodyId}" class="inline-input" placeholder="Name"><button class="save-btn" onclick="saveReconciliation('${tbodyId}', '${tabName}')">Save</button></div></td>
                 </tr>`;
         };
 
@@ -403,9 +391,7 @@
             "https://docs.google.com/spreadsheets/d/e/2PACX-1vR1pqBoNtpPuBEuDubTJ-znIzJr9gfVvue050vJIYZn4Kb4HPmZizSO-Pmq-Gnct7tzMi5kFDnxzNlm/pub?gid=1532222316&single=true&output=csv"
         ];
 
-        const fetchSheet = (url) => new Promise((resolve, reject) => {
-            Papa.parse(url + "&t=" + new Date().getTime(), { download: true, header: true, dynamicTyping: true, complete: (res) => resolve(res.data), error: reject });
-        });
+        const fetchSheet = (url) => new Promise((resolve, reject) => { Papa.parse(url + "&t=" + new Date().getTime(), { download: true, header: true, dynamicTyping: true, complete: (res) => resolve(res.data), error: reject }); });
 
         const loadDashboard = async () => {
             try {
