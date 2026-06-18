@@ -216,42 +216,79 @@
         const saveInlineExpense = async (tbodyId, tabName, isFillUp = false) => {
             const nameInput = document.getElementById(`input-name-${tbodyId}`);
             const statusInput = document.getElementById(`input-status-${tbodyId}`);
-            const saveBtn = statusInput.nextElementSibling;
+            const amountInput = document.getElementById(`input-amount-${tbodyId}`);
             
             const name = nameInput.value.trim();
             const status = statusInput.value;
-            const amount = parseFloat(document.getElementById(`input-amount-${tbodyId}`)?.value || 0);
+            const amount = parseFloat(amountInput?.value || 0);
 
             if (!name) { alert("Please enter a name."); return; }
-            saveBtn.innerText = '...'; saveBtn.disabled = true;
 
+            // 1. OPTIMISTIC UI: Instantly update the screen
+            let newRowHTML = "";
+            if (isFillUp) {
+                newRowHTML = `<tr><td>${name}</td><td style="text-align: right;"><span class="badge ${getBadgeClass(status)}">${status}</span></td></tr>`;
+            } else {
+                newRowHTML = `<tr><td class="amount-cell amount-red">${formatMoney(amount)}</td><td>${name}</td><td><span class="badge ${getBadgeClass(status)}">${status}</span></td></tr>`;
+                
+                // Instantly update the category total
+                expenseTotals[tabName] += amount;
+                const totalId = tbodyId.replace('-body', '-total');
+                if (document.getElementById(totalId)) {
+                    document.getElementById(totalId).innerText = formatMoney(expenseTotals[tabName]);
+                }
+                // Instantly update the chart and actual revenue
+                calculateRevenue(); 
+            }
+
+            // Inject the new row directly above the "Add New" button
+            const addBtnRow = document.getElementById(`add-btn-${tbodyId}`);
+            addBtnRow.insertAdjacentHTML('beforebegin', newRowHTML);
+
+            // Hide the form and reset inputs instantly
+            if (amountInput) amountInput.value = '';
+            nameInput.value = '';
+            statusInput.value = 'PAID';
+            document.getElementById(`inline-form-${tbodyId}`).style.display = 'none';
+            addBtnRow.style.display = 'table-row';
+
+            // 2. BACKGROUND SAVE: Send to Google silently without freezing the app
             const expenseData = { tabName: tabName, row: isFillUp ? [name, status] : [amount, name, "", status] };
-
             try {
-                await fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
-                setTimeout(async () => { await loadDashboard(); }, 5000);
+                // Notice we removed the 'await' and the 5-second reload delay
+                fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
             } catch (error) { 
-                console.error("Error:", error); 
-                saveBtn.innerText = 'Save'; saveBtn.disabled = false; 
+                console.error("Background save error:", error); 
             }
         };
 
         const saveReconciliation = async (tbodyId, tabName) => {
-            const amount = parseFloat(document.getElementById(`input-amount-${tbodyId}`).value);
-            const name = document.getElementById(`input-name-${tbodyId}`).value;
-            const saveBtn = document.querySelector(`#inline-form-${tbodyId} .save-btn`);
+            const amountInput = document.getElementById(`input-amount-${tbodyId}`);
+            const nameInput = document.getElementById(`input-name-${tbodyId}`);
+            const amount = parseFloat(amountInput.value);
+            const name = nameInput.value;
 
             if (!name || isNaN(amount)) { alert("Please enter both a name and an amount."); return; }
-            saveBtn.innerText = '...'; saveBtn.disabled = true;
 
+            // 1. OPTIMISTIC UI
+            const newRowHTML = `<tr><td>${name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`;
+            
+            // Inject above the Add button
+            const addBtnRow = document.getElementById(`add-btn-${tbodyId}`);
+            addBtnRow.insertAdjacentHTML('beforebegin', newRowHTML);
+
+            // Hide form and reset instantly
+            amountInput.value = '';
+            nameInput.value = '';
+            document.getElementById(`inline-form-${tbodyId}`).style.display = 'none';
+            addBtnRow.style.display = 'table-row';
+
+            // 2. BACKGROUND SAVE
             const expenseData = { tabName: tabName, row: [amount, name, "OTHER"] };
-
             try {
-                await fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
-                setTimeout(async () => { await loadDashboard(); }, 5000);
+                fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
             } catch (error) { 
-                console.error("Error:", error); 
-                saveBtn.innerText = 'Save'; saveBtn.disabled = false; 
+                console.error("Background save error:", error); 
             }
         };
 
