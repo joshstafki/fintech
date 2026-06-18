@@ -156,6 +156,7 @@
 
     <script>
         const expenseTotals = { Out_Of_Pocket: 0, Bank_Initiated: 0 };
+        const reconBalances = { Bank_Reconciliation: { start: 0, expenses: 0 }, Grocery_Budget: { start: 0, expenses: 0 } };
         const scriptURL = "https://script.google.com/macros/s/AKfycbzv8nN_pnwlCEaS6cPZ4b7qkl8y0Klb-oHO8eY3k-gao9HG_M5yeuWi2is0aJC3cbohnw/exec"; 
         let revenueChartInstance = null;
 
@@ -224,42 +225,52 @@
 
             if (!name) { alert("Please enter a name."); return; }
 
-            // 1. OPTIMISTIC UI: Instantly update the screen
+            // OPTIMISTIC UI INSTANT UPDATE
             let newRowHTML = "";
             if (isFillUp) {
                 newRowHTML = `<tr><td>${name}</td><td style="text-align: right;"><span class="badge ${getBadgeClass(status)}">${status}</span></td></tr>`;
             } else {
                 newRowHTML = `<tr><td class="amount-cell amount-red">${formatMoney(amount)}</td><td>${name}</td><td><span class="badge ${getBadgeClass(status)}">${status}</span></td></tr>`;
-                
-                // Instantly update the category total
                 expenseTotals[tabName] += amount;
                 const totalId = tbodyId.replace('-body', '-total');
                 if (document.getElementById(totalId)) {
                     document.getElementById(totalId).innerText = formatMoney(expenseTotals[tabName]);
                 }
-                // Instantly update the chart and actual revenue
                 calculateRevenue(); 
             }
 
-            // Inject the new row directly above the "Add New" button
             const addBtnRow = document.getElementById(`add-btn-${tbodyId}`);
             addBtnRow.insertAdjacentHTML('beforebegin', newRowHTML);
 
-            // Hide the form and reset inputs instantly
             if (amountInput) amountInput.value = '';
             nameInput.value = '';
             statusInput.value = 'PAID';
             document.getElementById(`inline-form-${tbodyId}`).style.display = 'none';
             addBtnRow.style.display = 'table-row';
 
-            // 2. BACKGROUND SAVE: Send to Google silently without freezing the app
+            // BACKGROUND SAVE
             const expenseData = { tabName: tabName, row: isFillUp ? [name, status] : [amount, name, "", status] };
             try {
-                // Notice we removed the 'await' and the 5-second reload delay
                 fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
             } catch (error) { 
-                console.error("Background save error:", error); 
+                console.error("Error:", error); 
             }
+        };
+
+        const recalcRecon = (tbodyId, tabName) => {
+            const startVal = parseFloat(document.getElementById(`start-input-${tbodyId}`).value) || 0;
+            localStorage.setItem(`start_${tabName}`, startVal);
+            reconBalances[tabName].start = startVal;
+            
+            const currentBalance = startVal - reconBalances[tabName].expenses;
+            
+            const balanceAmountCell = document.getElementById(`balance-amount-${tbodyId}`);
+            const balanceStatusCell = document.getElementById(`balance-status-${tbodyId}`);
+            
+            balanceAmountCell.innerText = formatMoney(currentBalance);
+            balanceAmountCell.className = currentBalance < 0 ? 'amount-red' : (currentBalance === 0 ? 'amount-green' : '');
+            balanceStatusCell.innerText = currentBalance === 0 ? 'RECONCILED' : 'NOT RECONCILED';
+            balanceStatusCell.style.color = currentBalance === 0 ? 'var(--success-green)' : 'var(--danger-red)';
         };
 
         const saveReconciliation = async (tbodyId, tabName) => {
@@ -270,25 +281,25 @@
 
             if (!name || isNaN(amount)) { alert("Please enter both a name and an amount."); return; }
 
-            // 1. OPTIMISTIC UI
-            const newRowHTML = `<tr><td>${name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`;
-            
-            // Inject above the Add button
-            const addBtnRow = document.getElementById(`add-btn-${tbodyId}`);
-            addBtnRow.insertAdjacentHTML('beforebegin', newRowHTML);
+            // OPTIMISTIC UI INSTANT UPDATE
+            reconBalances[tabName].expenses += amount;
+            recalcRecon(tbodyId, tabName);
 
-            // Hide form and reset instantly
+            const newRowHTML = `<tr><td>${name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`;
+            const totalRow = document.getElementById(`total-row-${tbodyId}`);
+            totalRow.insertAdjacentHTML('beforebegin', newRowHTML);
+
             amountInput.value = '';
             nameInput.value = '';
             document.getElementById(`inline-form-${tbodyId}`).style.display = 'none';
-            addBtnRow.style.display = 'table-row';
+            document.getElementById(`add-btn-${tbodyId}`).style.display = 'table-row';
 
-            // 2. BACKGROUND SAVE
+            // BACKGROUND SAVE
             const expenseData = { tabName: tabName, row: [amount, name, "OTHER"] };
             try {
                 fetch(scriptURL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(expenseData) });
             } catch (error) { 
-                console.error("Background save error:", error); 
+                console.error("Error:", error); 
             }
         };
 
@@ -340,22 +351,36 @@
         const renderReconciliation = (liveData, tbodyId, tabName) => {
             const tbody = document.getElementById(tbodyId);
             tbody.innerHTML = ''; 
-            let balance = 0;
+            
+            // Load starting balance from localStorage
+            const savedStart = localStorage.getItem(`start_${tabName}`) || (tabName === 'Bank_Reconciliation' ? 2500.00 : 500.00);
+            
+            // Render the Editable Starting Row
+            tbody.innerHTML += `
+                <tr style="background: #f9fafb;">
+                    <td style="display: flex; align-items: baseline; font-weight: bold;">
+                        <span style="color: var(--text-muted); margin-right: 2px;">$</span>
+                        <input type="number" id="start-input-${tbodyId}" class="ghost-input" style="font-size: 1rem; padding: 0;" value="${savedStart}" step="0.01" oninput="recalcRecon('${tbodyId}', '${tabName}')">
+                    </td>
+                    <td style="text-align: right; color: var(--text-muted);">Starting Balance</td>
+                </tr>
+            `;
 
+            let expenseTotal = 0;
             liveData.forEach(item => {
                 if (!item.Name) return; 
+                // Ignore any old 'STARTING' rows from the Google Sheet so we don't double count
+                if ((item.Type || '').toString().toUpperCase() === 'STARTING') return;
+
                 const amount = parseFloat(item.Amount) || 0;
-                
-                if ((item.Type || '').toString().toUpperCase() === 'STARTING') { 
-                    balance += amount; 
-                    tbody.innerHTML += `<tr style="background: #f9fafb;"><td class="amount-cell" style="font-weight: bold;">${formatMoney(amount)}</td><td style="text-align: right; color: var(--text-muted);">${item.Name} (STARTING)</td></tr>`; 
-                } else { 
-                    balance -= amount; 
-                    tbody.innerHTML += `<tr><td>${item.Name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`; 
-                }
+                expenseTotal += amount; 
+                tbody.innerHTML += `<tr><td>${item.Name}</td><td class="amount-cell amount-red" style="text-align: right;">-${formatMoney(amount)}</td></tr>`; 
             });
 
-            tbody.innerHTML += `<tr class="total-row"><td class="${balance < 0 ? 'amount-red' : (balance === 0 ? 'amount-green' : '')}">${formatMoney(balance)}</td><td style="text-align: right; font-size: 0.8rem; color: ${balance === 0 ? 'var(--success-green)' : 'var(--danger-red)'};">${balance === 0 ? 'RECONCILED' : 'NOT RECONCILED'}</td></tr>`;
+            reconBalances[tabName] = { start: parseFloat(savedStart), expenses: expenseTotal };
+            const currentBalance = parseFloat(savedStart) - expenseTotal;
+
+            tbody.innerHTML += `<tr id="total-row-${tbodyId}" class="total-row"><td id="balance-amount-${tbodyId}" class="${currentBalance < 0 ? 'amount-red' : (currentBalance === 0 ? 'amount-green' : '')}">${formatMoney(currentBalance)}</td><td id="balance-status-${tbodyId}" style="text-align: right; font-size: 0.8rem; color: ${currentBalance === 0 ? 'var(--success-green)' : 'var(--danger-red)'};">${currentBalance === 0 ? 'RECONCILED' : 'NOT RECONCILED'}</td></tr>`;
 
             tbody.innerHTML += `
                 <tr id="add-btn-${tbodyId}" class="add-row-btn" onclick="openInlineForm('${tbodyId}')"><td colspan="2">+ Add New</td></tr>
