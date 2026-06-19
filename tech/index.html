@@ -68,12 +68,33 @@
 </head>
 <body>
 
+    <div id="login-screen" style="max-width: 360px; margin: 4rem auto;">
+        <div class="card">
+            <div class="card-header header-blue">Sign in</div>
+            <div class="card-body" style="padding: 1.5rem; text-align: center;">
+                <button onclick="handleGoogleSignIn()" style="width: 100%; padding: 0.6rem 1rem; border-radius: 6px; border: 1px solid var(--border-color); background: white; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                    Sign in with Google
+                </button>
+                <div id="login-error" style="color: var(--danger-red); font-size: 0.85rem; margin-top: 0.75rem; min-height: 1.2em;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboard-root" style="display: none;">
+
     <div class="dashboard-header">
-        <h1>Financial Dashboard</h1>
-        <p style="color: var(--text-muted); margin-top: 0.25rem;">Live Data Connected (Firebase)</p>
-        <button onclick="performHardReset()" style="background: var(--danger-red); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 1rem;">
-            Hard Reset (Wipe All Data)
-        </button>
+        <div>
+            <h1>Financial Dashboard</h1>
+            <p style="color: var(--text-muted); margin-top: 0.25rem;">Live Data Connected (Firebase)</p>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; margin-top: 1rem;">
+            <button onclick="performHardReset()" style="background: var(--danger-red); color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                Hard Reset (Wipe All Data)
+            </button>
+            <button onclick="handleLogout()" style="background: none; border: none; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; text-decoration: underline; padding: 0;">
+                Sign out
+            </button>
+        </div>
     </div>
 
     <div class="dashboard-grid">
@@ -156,12 +177,17 @@
         </div>
     </div>
 
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
         import {
             getFirestore, collection, doc, addDoc, deleteDoc, setDoc,
             onSnapshot, getDocs, writeBatch, serverTimestamp
         } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+        import {
+            getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCy-TtJUv-lqhNd_aiadEoiLSveYSTatVA",
@@ -174,8 +200,40 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+        const googleProvider = new GoogleAuthProvider();
         const entriesCol = collection(db, "entries");
         const settingsRef = doc(db, "settings", "budget");
+
+        let unsubEntries = null;
+        let unsubSettings = null;
+
+        // ---------- Auth gate ----------
+        window.handleGoogleSignIn = async () => {
+            const errorEl = document.getElementById('login-error');
+            errorEl.textContent = '';
+            try {
+                await signInWithPopup(auth, googleProvider);
+            } catch (err) {
+                errorEl.textContent = "Sign-in failed — try again.";
+                console.error(err);
+            }
+        };
+
+        window.handleLogout = () => signOut(auth);
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('dashboard-root').style.display = '';
+                startListeners();
+            } else {
+                document.getElementById('login-screen').style.display = '';
+                document.getElementById('dashboard-root').style.display = 'none';
+                if (unsubEntries) unsubEntries();
+                if (unsubSettings) unsubSettings();
+            }
+        });
 
         // In-memory mirrors of whatever is currently in Firestore.
         // These get rebuilt fresh every time a listener fires.
@@ -271,8 +329,6 @@
             statusInput.value = 'PAID';
             document.getElementById(`inline-form-${tbodyId}`).style.display = 'none';
             document.getElementById(`add-btn-${tbodyId}`).style.display = 'table-row';
-            // No manual row insertion needed — the onSnapshot listener below
-            // will see this new document and re-render automatically.
         };
 
         window.recalcRecon = (tbodyId, tabName) => {
@@ -403,20 +459,24 @@
         // These two listeners replace loadDashboard() entirely — there's no
         // one-time fetch anymore. Anything that changes in Firestore re-runs
         // renderAll() automatically, from anywhere: this tab, your phone, etc.
-        onSnapshot(entriesCol, (snap) => {
-            for (const key in liveData) liveData[key] = [];
-            snap.forEach((docSnap) => {
-                const row = { id: docSnap.id, ...docSnap.data() };
-                if (liveData[row.category]) liveData[row.category].push(row);
-            });
-            renderAll();
-        }, (err) => console.error("Entries listener error:", err));
+        // Only started after onAuthStateChanged confirms you're signed in,
+        // since the security rules now require it.
+        function startListeners() {
+            unsubEntries = onSnapshot(entriesCol, (snap) => {
+                for (const key in liveData) liveData[key] = [];
+                snap.forEach((docSnap) => {
+                    const row = { id: docSnap.id, ...docSnap.data() };
+                    if (liveData[row.category]) liveData[row.category].push(row);
+                });
+                renderAll();
+            }, (err) => console.error("Entries listener error:", err));
 
-        onSnapshot(settingsRef, (snap) => {
-            if (snap.exists()) settings = { ...settings, ...snap.data() };
-            document.getElementById('spendable-income').value = settings.spendableIncome;
-            renderAll();
-        }, (err) => console.error("Settings listener error:", err));
+            unsubSettings = onSnapshot(settingsRef, (snap) => {
+                if (snap.exists()) settings = { ...settings, ...snap.data() };
+                document.getElementById('spendable-income').value = settings.spendableIncome;
+                renderAll();
+            }, (err) => console.error("Settings listener error:", err));
+        }
     </script>
 </body>
 </html>
